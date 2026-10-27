@@ -13,7 +13,7 @@ import {
   s,
 } from "../components/ui";
 import { C } from "../constants/colors";
-
+import { useLanguage } from "../contexts/languageContext";
 export default function AnalysticScreen({
   slices = [],
   total = 0,
@@ -29,12 +29,13 @@ export default function AnalysticScreen({
 }) {
   const [date] = useState(new Date());
   const ring = 2 * Math.PI * 82;
+  const { language, t } = useLanguage();
   const max = Math.max(...months.map((m) => m.amount), 1);
 
   return (
     <Screen>
       <Header
-        title="Thống kê chi tiêu"
+        title={t("analytics.title")}
         right={
           <View style={s.iconButton}>
             <Icon name="pie-chart-outline" />
@@ -58,7 +59,7 @@ export default function AnalysticScreen({
           onPress={onPrevMonth || (() => {})}
         />
         <Txt weight="bold" style={{ fontSize: 14 }}>
-          {date.toLocaleDateString("vi-VN", { month: "long", year: "numeric" })}
+          {`${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`}
         </Txt>
         <IconButton
           icon="chevron-forward"
@@ -68,7 +69,7 @@ export default function AnalysticScreen({
       </View>
 
       <Enter>
-        <Section title="Phân bổ chi tiêu" />
+        <Section title={t("analytics.allocation")} />
         <View
           style={{
             alignItems: "center",
@@ -125,7 +126,9 @@ export default function AnalysticScreen({
             >
               {total.toLocaleString()} ₫
             </Txt>
-            <Txt style={{ fontSize: 11, color: C.muted }}>Tổng đã chi</Txt>
+            <Txt style={{ fontSize: 11, color: C.muted }}>
+              {t("analytics.total_spent")}
+            </Txt>
           </View>
         </View>
 
@@ -164,15 +167,17 @@ export default function AnalysticScreen({
         </View>
         {!total && (
           <Empty
-            title="Chưa có dữ liệu"
-            body="Tháng này chưa phát sinh khoản chi tiêu nào."
+            title={t("analytics.empty_title")}
+            body={t("analytics.empty_body")}
           />
         )}
       </Enter>
 
       <View>
-        <Section title="Xu hướng chi tiêu" />
-        <Txt style={{ fontSize: 11, color: C.muted }}>6 tháng gần nhất</Txt>
+        <Section title={t("analytics.trend")} />
+        <Txt style={{ fontSize: 11, color: C.muted }}>
+          {t("analytics.last_6_months")}
+        </Txt>
         <View
           style={{ flexDirection: "row", height: 155, gap: 12, marginTop: 15 }}
         >

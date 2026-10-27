@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View } from "react-native";
 import { Button, Field, Header, Screen } from "../components/ui";
 import { C } from "../constants/colors";
-
+import { useLanguage } from "../contexts/languageContext";
 export default function DepositScreen({
   onBack,
   onSave,
@@ -10,14 +10,15 @@ export default function DepositScreen({
   onBack?: () => void;
   onSave?: (amount: number) => void;
 }) {
+  const { t } = useLanguage();
   const [amount, setAmount] = useState("");
 
   return (
     <Screen>
       <Header
         back
-        title="Nạp tiền vào ví"
-        subtitle="Điều chỉnh ngân sách chi tiêu khả dụng"
+        title={t("deposit.title")}
+        subtitle={t("deposit.subtitle")}
         onBack={onBack}
       />
 
@@ -31,7 +32,7 @@ export default function DepositScreen({
         }}
       >
         <Field
-          label="Số tiền muốn nạp (₫)"
+          label={t("deposit.amount_label")}
           placeholder="0"
           value={amount}
           onChangeText={setAmount}
@@ -48,7 +49,7 @@ export default function DepositScreen({
       </View>
 
       <Button
-        title="Xác nhận nạp"
+        title={t("deposit.confirm")}
         icon="checkmark"
         onPress={() => (onSave ? onSave(Number(amount)) : onBack?.())}
       />

@@ -13,6 +13,7 @@ import {
   s,
 } from "../components/ui";
 import { C } from "../constants/colors";
+import { useLanguage } from "../contexts/languageContext";
 
 export default function HomeScreen({
   userName = "Khiêm",
@@ -36,23 +37,24 @@ export default function HomeScreen({
   onDeposit?: () => void;
 }) {
   const [visible, setVisible] = useState(true);
+  const { t } = useLanguage();
 
   return (
     <Screen>
-      {/* Top Header */}
       <View style={[s.row, { justifyContent: "space-between", gap: 8 }]}>
         <View style={{ flex: 1 }}>
           <Txt style={{ color: C.muted, fontSize: 11, letterSpacing: 2 }}>
-            MINT / DAILY FINANCE
+            {t("home.brand")}
           </Txt>
           <Txt
             weight="extra"
             style={{ fontSize: 23, letterSpacing: -0.8, marginTop: 7 }}
           >
-            Chào bạn, {userName} <Txt style={{ color: C.gold }}>✦</Txt>
+            {t("home.greeting")}, {userName}{" "}
+            <Txt style={{ color: C.gold }}>✦</Txt>
           </Txt>
           <Txt style={{ color: C.muted, fontSize: 11, marginTop: 5 }}>
-            Một ngày mới, một khởi đầu tốt.
+            {t("home.subtitle")}
           </Txt>
         </View>
         <Tap
@@ -82,7 +84,6 @@ export default function HomeScreen({
         </Tap>
       </View>
 
-      {/* Thẻ số dư chính */}
       <Enter>
         <LinearGradient
           colors={["#1C513C", "#0C3426"]}
@@ -95,68 +96,46 @@ export default function HomeScreen({
             overflow: "hidden",
           }}
         >
-          <View
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              width: 210,
-              height: 210,
-              borderWidth: 1,
-              borderColor: "#ffffff0D",
-              borderRadius: 110,
-              right: -90,
-              top: -70,
-            }}
-          />
-          <View
-            pointerEvents="none"
-            style={{
-              position: "absolute",
-              width: 280,
-              height: 280,
-              borderWidth: 1,
-              borderColor: "#ffffff0A",
-              borderRadius: 140,
-              right: -120,
-              top: -100,
-            }}
-          />
           <View style={[s.row, { justifyContent: "space-between" }]}>
             <View style={[s.row, { gap: 7 }]}>
               <Icon name="wallet-outline" size={16} color={C.lime} />
               <Txt style={{ color: "#D0DFCA", fontSize: 12 }}>
-                Số dư khả dụng
+                {t("home.available_balance")}
               </Txt>
             </View>
-            <Tap
-              onPress={onDeposit}
-              style={{
-                backgroundColor: "rgba(218, 233, 174, 0.2)",
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                borderRadius: 12,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              <Icon
-                name={visible ? "eye-outline" : "eye-off-outline"}
-                color="#DAE9CC"
-                size={18}
-              />
-            </Tap>
-            <Tap
-              onPress={() => setVisible(!visible)}
-              style={{ minHeight: 26, minWidth: 26, alignItems: "center" }}
-            >
-              <Icon
-                name={visible ? "eye-outline" : "eye-off-outline"}
-                color="#DAE9CC"
-                size={18}
-              />
-            </Tap>
+
+            <View style={[s.row, { gap: 10 }]}>
+              <Tap
+                onPress={onDeposit}
+                style={{
+                  backgroundColor: "rgba(218, 233, 174, 0.2)",
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <Icon name="add-circle-outline" size={15} color={C.lime} />
+                <Txt weight="bold" style={{ color: C.lime, fontSize: 11 }}>
+                  {t("home.deposit")}
+                </Txt>
+              </Tap>
+
+              <Tap
+                onPress={() => setVisible(!visible)}
+                style={{ minHeight: 26, minWidth: 26, alignItems: "center" }}
+              >
+                <Icon
+                  name={visible ? "eye-outline" : "eye-off-outline"}
+                  color="#DAE9CC"
+                  size={18}
+                />
+              </Tap>
+            </View>
           </View>
+
           <View style={{ marginTop: 12, marginBottom: 10 }}>
             <Txt
               weight="extra"
@@ -171,6 +150,7 @@ export default function HomeScreen({
                 : "••••••••"}
             </Txt>
           </View>
+
           <View style={[s.row, { justifyContent: "space-between" }]}>
             <View
               style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
@@ -183,7 +163,9 @@ export default function HomeScreen({
                   backgroundColor: C.lime,
                 }}
               />
-              <Txt style={{ color: "#B8D0B6", fontSize: 11 }}>Ví cá nhân</Txt>
+              <Txt style={{ color: "#B8D0B6", fontSize: 11 }}>
+                {t("home.wallet_name")}
+              </Txt>
             </View>
             <Txt
               weight="extra"
@@ -195,7 +177,6 @@ export default function HomeScreen({
         </LinearGradient>
       </Enter>
 
-      {/* 3 nút dịch vụ nhanh */}
       <Enter delay={160}>
         <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
           <Tap onPress={onAdd} style={{ alignItems: "center", gap: 8 }}>
@@ -212,7 +193,7 @@ export default function HomeScreen({
               <Icon name="add" size={24} />
             </View>
             <Txt weight="semibold" style={{ fontSize: 11 }}>
-              Thêm chi tiêu
+              {t("home.add_expense")}
             </Txt>
           </Tap>
 
@@ -230,7 +211,7 @@ export default function HomeScreen({
               <Icon name="grid-outline" size={24} />
             </View>
             <Txt weight="semibold" style={{ fontSize: 11 }}>
-              Danh mục
+              {t("home.categories")}
             </Txt>
           </Tap>
 
@@ -248,17 +229,16 @@ export default function HomeScreen({
               <Icon name="time-outline" size={24} />
             </View>
             <Txt weight="semibold" style={{ fontSize: 11 }}>
-              Lịch sử
+              {t("home.history")}
             </Txt>
           </Tap>
         </View>
       </Enter>
 
-      {/* Danh sách gần đây */}
       <Enter delay={210}>
         <Section
-          title="Chi tiêu gần đây"
-          action="Xem tất cả"
+          title={t("home.recent_title")}
+          action={t("home.see_all")}
           onPress={onHistory}
         />
         <View style={{ marginTop: 3 }}>
@@ -267,20 +247,19 @@ export default function HomeScreen({
           ))}
           {!recentTransactions.length && (
             <Empty
-              title="Chưa có chi tiêu"
-              body="Ghi chép lại các khoản chi hàng ngày để quản lý ngân sách tốt hơn."
-              action="Thêm khoản chi"
+              title={t("home.empty_title")}
+              body={t("home.empty_body")}
+              action={t("home.add_button")}
               onPress={onAdd}
             />
           )}
         </View>
       </Enter>
 
-      {/* Khung tiến độ trống */}
       <View style={[s.card, { gap: 13 }]}>
         <View style={[s.row, { justifyContent: "space-between" }]}>
           <Txt weight="bold" style={{ fontSize: 12 }}>
-            Tiến độ ngân sách
+            {t("home.budget_progress")}
           </Txt>
           <Txt weight="extra" style={{ color: C.green }}>
             ---%
@@ -304,9 +283,11 @@ export default function HomeScreen({
           />
         </View>
         <Txt style={{ fontSize: 11, color: C.muted }}>
-          Ngân sách ban đầu: --- ₫
+          {t("home.budget_initial")}: --- ₫
         </Txt>
-        <Txt style={{ fontSize: 11, color: C.muted }}>Tổng đã chi: --- ₫</Txt>
+        <Txt style={{ fontSize: 11, color: C.muted }}>
+          {t("home.budget_spent")}: --- ₫
+        </Txt>
       </View>
     </Screen>
   );

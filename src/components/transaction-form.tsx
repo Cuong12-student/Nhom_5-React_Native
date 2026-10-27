@@ -4,7 +4,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Button, Chip, Field, Header, Icon, Screen, Tap, Txt, s } from "./ui";
 import { C } from "../constants/colors";
 import { CATEGORIES } from "../constants/categories";
-
+import { useLanguage } from "../contexts/languageContext";
 export function TransactionForm({
   id,
   initialData,
@@ -16,6 +16,7 @@ export function TransactionForm({
   onBack?: () => void;
   onSave?: (data: any) => void;
 }) {
+  const { language, t } = useLanguage();
   const [name, setName] = useState(initialData?.title || "");
   const [amount, setAmount] = useState(
     initialData?.amount ? String(initialData.amount) : "",
@@ -39,7 +40,11 @@ export function TransactionForm({
     <Screen>
       <Header
         back
-        title={id ? "Sửa khoản chi" : "Thêm khoản chi"}
+        title={
+          id
+            ? t("transaction_form.edit_title")
+            : t("transaction_form.add_title")
+        }
         onBack={onBack}
       />
       <View
@@ -51,7 +56,7 @@ export function TransactionForm({
         }}
       >
         <Field
-          label="Số tiền (₫)"
+          label={t("transaction_form.amount_label")}
           placeholder="0"
           value={amount}
           onChangeText={setAmount}
@@ -68,15 +73,15 @@ export function TransactionForm({
       </View>
 
       <Field
-        label="Tên khoản chi"
-        placeholder="Ví dụ: Ăn trưa"
+        label={t("transaction_form.name_label")}
+        placeholder={t("transaction_form.name_placeholder")}
         value={name}
         onChangeText={setName}
       />
 
       <View style={{ gap: 10 }}>
         <Txt weight="semibold" style={{ fontSize: 12 }}>
-          Danh mục
+          {t("transaction_form.category_label")}
         </Txt>
         <ScrollView
           horizontal
@@ -98,7 +103,7 @@ export function TransactionForm({
       <View style={{ flexDirection: "row", gap: 10 }}>
         <View style={{ flex: 1, gap: 9 }}>
           <Txt weight="semibold" style={{ fontSize: 12 }}>
-            Ngày chi
+            {t("transaction_form.date_label")}
           </Txt>
           <Tap
             onPress={() => setPicker("date")}
@@ -124,14 +129,18 @@ export function TransactionForm({
       )}
 
       <Field
-        label="Ghi chú"
+        label={t("transaction_form.note_label")}
         placeholder="Không bắt buộc"
         value={note}
         onChangeText={setNote}
         multiline
         style={{ minHeight: 90 }}
       />
-      <Button title="Lưu khoản chi" onPress={handleSubmit} icon="checkmark" />
+      <Button
+        title={t("transaction_form.submit")}
+        onPress={handleSubmit}
+        icon="checkmark"
+      />
     </Screen>
   );
 }

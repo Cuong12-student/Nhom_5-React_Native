@@ -7,7 +7,7 @@ import { Button, Icon, Tap, Txt, s } from "../components/ui";
 import { WalletArt } from "../components/wallet-art";
 import { JourneyArt } from "../components/journey-art";
 import { C } from "../constants/colors";
-
+import { useLanguage } from "../contexts/languageContext";
 const slides = [
   {
     title: "Tiền của bạn.\nNgày tốt hơn.",

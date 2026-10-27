@@ -1,0 +1,108 @@
+{
+  "auth": {
+    "login_title": "Bon retour.",
+    "login_sub": "Connectez-vous pour gérer vos finances.",
+    "register_title": "Commencez l'aventure.",
+    "register_sub": "Gérez vos dépenses simplement chaque jour.",
+    "name": "Nom et prénom",
+    "username": "E-mail ou nom d'utilisateur",
+    "password": "Mot de passe",
+    "confirm_password": "Confirmer le mot de passe",
+    "initial_balance": "Solde initial (₫)",
+    "login_btn": "Se connecter",
+    "register_btn": "S'inscrire",
+    "have_account": "Vous avez déjà un compte ?",
+    "no_account": "Pas encore de compte ?",
+    "switch_to_login": "Se connecter",
+    "switch_to_register": "S'inscrire maintenant"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "history": "Historique",
+    "analytics": "Statistiques",
+    "categories": "Catégories"
+  },
+  "home": {
+    "brand": "MINT / DAILY FINANCE",
+    "greeting": "Bonjour",
+    "subtitle": "Un nouveau jour, un bon départ.",
+    "available_balance": "Solde disponible",
+    "wallet_name": "Portefeuille personnel",
+    "deposit": "Recharger",
+    "add_expense": "Ajouter",
+    "categories": "Catégories",
+    "history": "Historique",
+    "recent_title": "Dépenses récentes",
+    "see_all": "Voir tout",
+    "empty_title": "Aucune dépense",
+    "empty_body": "Enregistrez vos dépenses pour mieux gérer votre budget.",
+    "add_button": "Ajouter une dépense",
+    "budget_progress": "Progression du budget",
+    "budget_initial": "Budget initial",
+    "budget_spent": "Total dépensé"
+  },
+  "history": {
+    "title": "Historique des dépenses",
+    "search_placeholder": "Rechercher...",
+    "all": "Tous",
+    "results": "résultats",
+    "empty_title": "Aucune dépense trouvée",
+    "empty_body": "Essayez de modifier votre recherche ou filtre.",
+    "add_new": "Ajouter une dépense"
+  },
+  "analytics": {
+    "title": "Statistiques des dépenses",
+    "allocation": "Répartition des dépenses",
+    "total_spent": "Total dépensé",
+    "trend": "Tendance des dépenses",
+    "last_6_months": "6 derniers mois",
+    "empty_title": "Aucune donnée",
+    "empty_body": "Aucune dépense enregistrée ce mois-ci."
+  },
+  "categories": {
+    "title": "Catégories",
+    "subtitle": "Classez vos dépenses pour un meilleur suivi",
+    "total_count": "Nombre de catégories",
+    "add_new": "Ajouter une catégorie",
+    "empty_title": "Aucune catégorie",
+    "empty_body": "Créez des catégories pour classer vos dépenses."
+  },
+  "category_names": {
+    "other": "Autre"
+  },
+  "category_form": {
+    "add_title": "Nouvelle catégorie",
+    "edit_title": "Modifier la catégorie",
+    "name_label": "Nom de la catégorie",
+    "name_placeholder": "Ex: Café, Études...",
+    "icon_label": "Icône",
+    "color_label": "Couleur",
+    "save": "Enregistrer la catégorie",
+    "delete": "Supprimer la catégorie"
+  },
+  "deposit": {
+    "title": "Recharger le portefeuille",
+    "subtitle": "Ajustez votre solde de dépenses disponible",
+    "amount_label": "Montant à recharger (₫)",
+    "confirm": "Confirmer"
+  },
+  "transaction_form": {
+    "add_title": "Ajouter une dépense",
+    "edit_title": "Modifier la dépense",
+    "amount_label": "Montant (₫)",
+    "name_label": "Nom de la dépense",
+    "name_placeholder": "Ex: Déjeuner",
+    "category_label": "Catégorie",
+    "date_label": "Date",
+    "note_label": "Note",
+    "note_placeholder": "Facultatif",
+    "submit": "Enregistrer"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "app_desc": "Suivez les dépenses et gérez votre portefeuille au quotidien.",
+    "language": "Langue d'affichage",
+    "welcome_screen": "Retour à l'accueil",
+    "team": "Équipe du projet · 05"
+  }
+}
