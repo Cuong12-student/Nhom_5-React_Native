@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { Button, CategoryIcon, Header, Screen, Txt, s } from "../components/ui";
 import { C } from "../constants/colors";
 import { CATEGORIES } from "../constants/categories";
-
+import { useLanguage } from "../contexts/languageContext";
 export default function TransactionsDetailsScreen({
   transaction,
   onBack,

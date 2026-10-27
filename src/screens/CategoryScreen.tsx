@@ -12,7 +12,7 @@ import {
   s,
 } from "../components/ui";
 import { C } from "../constants/colors";
-
+import { useLanguage } from "../contexts/languageContext";
 const ICONS = [
   "restaurant-outline",
   "bus-outline",
@@ -46,15 +46,22 @@ export default function CategoryScreen({
   onSave?: (data: any) => void;
   onDelete?: (id: string) => void;
 }) {
+  const { t } = useLanguage();
+  const defaultName = initialData?.key
+    ? t(`category_names.${initialData.key}`)
+    : initialData?.name || "";
   const [name, setName] = useState(initialData?.name || "");
   const [icon, setIcon] = useState(initialData?.icon || ICONS[0]);
   const [color, setColor] = useState(initialData?.color || COLORS[0]);
-
   return (
     <Screen>
       <Header
         back
-        title={initialData ? "Sửa danh mục" : "Thêm danh mục"}
+        title={
+          initialData
+            ? t("category_form.edit_title")
+            : t("category_form.add_title")
+        }
         onBack={onBack}
       />
       <View style={{ alignItems: "center", paddingVertical: 12 }}>
@@ -62,15 +69,15 @@ export default function CategoryScreen({
       </View>
 
       <Field
-        label="Tên danh mục"
-        placeholder="Ví dụ: Cà phê, Học tập..."
+        label={t("category_form.name_label")}
+        placeholder={t("category_form.name_placeholder")}
         value={name}
         onChangeText={setName}
         maxLength={40}
       />
 
       <View style={{ gap: 14 }}>
-        <Txt weight="semibold">Biểu tượng</Txt>
+        <Txt weight="semibold">{t("category_form.icon_label")}</Txt>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 11 }}>
           {ICONS.map((value) => (
             <Tap
@@ -91,7 +98,7 @@ export default function CategoryScreen({
       </View>
 
       <View style={{ gap: 14 }}>
-        <Txt weight="semibold">Màu sắc</Txt>
+        <Txt weight="semibold">title={t("category_form.save")}</Txt>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 11 }}>
           {COLORS.map((value) => (
             <Tap
@@ -112,13 +119,13 @@ export default function CategoryScreen({
       </View>
 
       <Button
-        title="Lưu danh mục"
+        title={t("category_form.save")}
         onPress={() => (onSave ? onSave({ name, icon, color }) : onBack?.())}
         icon="checkmark"
       />
       {initialData && (
         <Button
-          title="Xóa danh mục"
+          title={t("category_form.delete")}
           onPress={() => (onDelete ? onDelete(initialData.id) : onBack?.())}
           icon="trash-outline"
           danger

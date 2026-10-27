@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, Tap, Txt } from "./ui";
 import { C } from "../constants/colors";
+import { useLanguage } from "../contexts/languageContext";
 
 export type TabKey = "home" | "history" | "add" | "analytics" | "categories";
 
@@ -14,12 +15,12 @@ export function BottomTabBar({
   onSelectTab: (tab: TabKey) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   return (
     <View
       style={[styles.container, { paddingBottom: Math.max(insets.bottom, 10) }]}
     >
-      {/* Trang chủ */}
       <Tap onPress={() => onSelectTab("home")} style={styles.tabItem}>
         <Icon
           name={currentTab === "home" ? "home" : "home-outline"}
@@ -33,11 +34,10 @@ export function BottomTabBar({
             { color: currentTab === "home" ? C.green : C.muted },
           ]}
         >
-          Trang chủ
+          {t("tabs.home")}
         </Txt>
       </Tap>
 
-      {/* Lịch sử */}
       <Tap onPress={() => onSelectTab("history")} style={styles.tabItem}>
         <Icon
           name={currentTab === "history" ? "receipt" : "receipt-outline"}
@@ -51,18 +51,16 @@ export function BottomTabBar({
             { color: currentTab === "history" ? C.green : C.muted },
           ]}
         >
-          Lịch sử
+          {t("tabs.history")}
         </Txt>
       </Tap>
 
-      {/* Nút tròn Thêm (+) ở giữa */}
       <Tap onPress={() => onSelectTab("add")} style={styles.centerItem}>
         <View style={styles.addCircle}>
           <Icon name="add" size={32} color="#FFFFFF" />
         </View>
       </Tap>
 
-      {/* Thống kê */}
       <Tap onPress={() => onSelectTab("analytics")} style={styles.tabItem}>
         <Icon
           name={currentTab === "analytics" ? "pie-chart" : "pie-chart-outline"}
@@ -76,11 +74,10 @@ export function BottomTabBar({
             { color: currentTab === "analytics" ? C.green : C.muted },
           ]}
         >
-          Thống kê
+          {t("tabs.analytics")}
         </Txt>
       </Tap>
 
-      {/* Danh mục */}
       <Tap onPress={() => onSelectTab("categories")} style={styles.tabItem}>
         <Icon
           name={currentTab === "categories" ? "grid" : "grid-outline"}
@@ -94,7 +91,7 @@ export function BottomTabBar({
             { color: currentTab === "categories" ? C.green : C.muted },
           ]}
         >
-          Danh mục
+          {t("tabs.categories")}
         </Txt>
       </Tap>
     </View>

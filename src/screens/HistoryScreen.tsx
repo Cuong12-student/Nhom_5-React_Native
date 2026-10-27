@@ -14,7 +14,7 @@ import {
 } from "../components/ui";
 import { C } from "../constants/colors";
 import { CATEGORIES } from "../constants/categories";
-
+import { useLanguage } from "../contexts/languageContext";
 export default function HistoryScreen({
   transactions = [],
   categories = CATEGORIES,
@@ -30,7 +30,7 @@ export default function HistoryScreen({
 }) {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-
+  const { t } = useLanguage();
   const filtered = transactions.filter((tx) => {
     const title = tx.title || tx.name || "";
     const matchName = title.toLowerCase().includes(query.toLowerCase());
@@ -42,7 +42,7 @@ export default function HistoryScreen({
   return (
     <Screen>
       <Header
-        title="Lịch sử chi tiêu"
+        title={t("history.title")}
         right={
           <Tap
             onPress={onAddTransaction}
@@ -58,7 +58,7 @@ export default function HistoryScreen({
         }
       />
       <Field
-        label="Tìm kiếm khoản chi"
+        label={t("history.search_placeholder")}
         placeholder="Nhập tên khoản chi..."
         value={query}
         onChangeText={setQuery}
@@ -70,7 +70,7 @@ export default function HistoryScreen({
         contentContainerStyle={{ gap: 7 }}
       >
         <Chip
-          title="Tất cả"
+          title={t("history.all")}
           selected={selectedCategory === "all"}
           onPress={() => setSelectedCategory("all")}
         />
@@ -87,7 +87,7 @@ export default function HistoryScreen({
 
       <View style={[s.row, { justifyContent: "space-between" }]}>
         <Txt style={{ fontSize: 11, color: C.muted }}>
-          {filtered.length} kết quả
+          {filtered.length} {t("history.results")}
         </Txt>
       </View>
 
@@ -97,9 +97,9 @@ export default function HistoryScreen({
         ))}
         {!filtered.length && (
           <Empty
-            title="Không tìm thấy chi tiêu"
-            body="Thử thay đổi từ khóa tìm kiếm hoặc bỏ chọn danh mục lọc."
-            action="Thêm chi tiêu mới"
+            title={t("history.empty_title")}
+            body={t("history.empty_body")}
+            action={t("history.add_new")}
             onPress={onAddTransaction}
           />
         )}

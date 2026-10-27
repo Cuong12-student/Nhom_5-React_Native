@@ -1,0 +1,111 @@
+{
+  "auth": {
+    "login_title": "Chào mừng trở lại.",
+    "login_sub": "Đăng nhập để tiếp tục quản lý dòng tiền.",
+    "register_title": "Bắt đầu hành trình mới.",
+    "register_sub": "Quản lý chi tiêu, nhẹ nhàng hơn mỗi ngày.",
+    "name": "Họ và tên",
+    "username": "Email hoặc tên đăng nhập",
+    "password": "Mật khẩu",
+    "confirm_password": "Nhập lại mật khẩu",
+    "initial_balance": "Số tiền ví ban đầu (₫)",
+    "login_btn": "Đăng nhập",
+    "register_btn": "Đăng ký",
+    "have_account": "Đã có tài khoản?",
+    "no_account": "Chưa có tài khoản?",
+    "switch_to_login": "Đăng nhập",
+    "switch_to_register": "Đăng ký ngay"
+  },
+  "tabs": {
+    "home": "Trang chủ",
+    "history": "Lịch sử",
+    "analytics": "Thống kê",
+    "categories": "Danh mục"
+  },
+  "home": {
+    "brand": "MINT / DAILY FINANCE",
+    "greeting": "Chào bạn",
+    "subtitle": "Một ngày mới, một khởi đầu tốt.",
+    "available_balance": "Số dư khả dụng",
+    "wallet_name": "Ví cá nhân",
+    "deposit": "Nạp tiền",
+    "add_expense": "Thêm chi tiêu",
+    "categories": "Danh mục",
+    "history": "Lịch sử",
+    "recent_title": "Chi tiêu gần đây",
+    "see_all": "Xem tất cả",
+    "empty_title": "Chưa có chi tiêu",
+    "empty_body": "Ghi chép lại các khoản chi hàng ngày để quản lý ngân sách tốt hơn.",
+    "add_button": "Thêm khoản chi",
+    "budget_progress": "Tiến độ ngân sách",
+    "budget_initial": "Ngân sách ban đầu",
+    "budget_spent": "Tổng đã chi"
+  },
+  "history": {
+    "title": "Lịch sử chi tiêu",
+    "search_placeholder": "Nhập tên khoản chi...",
+    "all": "Tất cả",
+    "results": "kết quả",
+    "empty_title": "Không tìm thấy chi tiêu",
+    "empty_body": "Thử thay đổi từ khóa tìm kiếm hoặc bỏ chọn danh mục lọc.",
+    "add_new": "Thêm chi tiêu mới"
+  },
+  "analytics": {
+    "title": "Thống kê chi tiêu",
+    "allocation": "Phân bổ chi tiêu",
+    "total_spent": "Tổng đã chi",
+    "trend": "Xu hướng chi tiêu",
+    "last_6_months": "6 tháng gần nhất",
+    "empty_title": "Chưa có dữ liệu",
+    "empty_body": "Tháng này chưa phát sinh khoản chi tiêu nào."
+  },
+  "categories": {
+    "title": "Danh mục chi tiêu",
+    "subtitle": "Phân loại để quản lý dòng tiền chi tiết",
+    "total_count": "Tổng số danh mục",
+    "add_new": "Thêm danh mục mới",
+    "edit_title": "Sửa danh mục",
+    "save": "Lưu danh mục",
+    "delete": "Xóa danh mục",
+    "empty_title": "Chưa có danh mục",
+    "empty_body": "Tạo các nhóm như Ăn uống, Mua sắm để quản lý khoản chi."
+  },
+  "category_names": {
+    "other": "Khác"
+  },
+  "category_form": {
+    "add_title": "Thêm danh mục",
+    "edit_title": "Sửa danh mục",
+    "name_label": "Tên danh mục",
+    "name_placeholder": "Ví dụ: Cà phê, Học tập...",
+    "icon_label": "Biểu tượng",
+    "color_label": "Màu sắc",
+    "save": "Lưu danh mục",
+    "delete": "Xóa danh mục"
+  },
+  "deposit": {
+    "title": "Nạp tiền vào ví",
+    "subtitle": "Điều chỉnh ngân sách chi tiêu khả dụng",
+    "amount_label": "Số tiền muốn nạp (₫)",
+    "confirm": "Xác nhận nạp"
+  },
+  "transaction_form": {
+    "add_title": "Thêm khoản chi",
+    "edit_title": "Sửa khoản chi",
+    "amount_label": "Số tiền (₫)",
+    "name_label": "Tên khoản chi",
+    "name_placeholder": "Ví dụ: Ăn trưa",
+    "category_label": "Danh mục",
+    "date_label": "Ngày chi",
+    "note_label": "Ghi chú",
+    "note_placeholder": "Không bắt buộc",
+    "submit": "Lưu khoản chi"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "app_desc": "Ghi lại chi tiêu, sắp xếp danh mục và theo dõi ví mỗi ngày.",
+    "language": "Ngôn ngữ hiển thị",
+    "welcome_screen": "Về màn hình chào",
+    "team": "Nhóm thực hiện · 05"
+  }
+}

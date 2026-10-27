@@ -13,6 +13,7 @@ import {
   s,
 } from "./ui";
 import { C } from "../constants/colors";
+import { useLanguage } from "../contexts/languageContext";
 
 export interface AuthScreenProps {
   register?: boolean;
@@ -31,6 +32,7 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
   const [confirm, setConfirm] = useState("");
   const [initialBalance, setInitialBalance] = useState("0");
   const [show, setShow] = useState(false);
+  const { t } = useLanguage();
 
   function handlePress() {
     if (onSubmit) {
@@ -81,17 +83,17 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
             />
           </View>
           <Txt weight="extra" style={{ fontSize: 31, letterSpacing: -1.3 }}>
-            {register ? "Bắt đầu hành trình mới." : "Chào mừng trở lại."}
+            {register ? t("auth.register_title") : t("auth.login_title")}
           </Txt>
           <Txt style={{ color: C.muted, marginTop: 10, lineHeight: 23 }}>
-            Quản lý chi tiêu, nhẹ nhàng hơn mỗi ngày.
+            {register ? t("auth.register_sub") : t("auth.login_sub")}
           </Txt>
         </View>
 
         <View style={{ gap: 18 }}>
           {register && (
             <Field
-              label="Họ và tên"
+              label={t("auth.name")}
               value={name}
               onChangeText={setName}
               autoComplete="off"
@@ -99,7 +101,7 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
             />
           )}
           <Field
-            label="Email hoặc tên đăng nhập"
+            label={t("auth.username")}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
@@ -109,7 +111,7 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
           />
           <View>
             <Field
-              label="Mật khẩu"
+              label={t("auth.password")}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!show}
@@ -126,7 +128,7 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
           </View>
           {register && (
             <Field
-              label="Nhập lại mật khẩu"
+              label={t("auth.confirm_password")}
               value={confirm}
               onChangeText={setConfirm}
               secureTextEntry={!show}
@@ -135,7 +137,7 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
           )}
           {register && (
             <Field
-              label="Số tiền ví ban đầu (₫)"
+              label={t("auth.initial_balance")}
               value={initialBalance}
               onChangeText={setInitialBalance}
               keyboardType="number-pad"
@@ -144,7 +146,7 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
           )}
 
           <Button
-            title={register ? "Đăng ký" : "Đăng nhập"}
+            title={register ? t("auth.register_btn") : t("auth.login_btn")}
             onPress={handlePress}
           />
 
@@ -155,13 +157,15 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
             ]}
           >
             <Txt style={{ color: C.muted, fontSize: 12 }}>
-              {register ? "Đã có tài khoản?" : "Chưa có tài khoản?"}
+              {register ? t("auth.have_account") : t("auth.no_account")}
             </Txt>
             <Tap
               onPress={() => router.replace(register ? "/login" : "/register")}
             >
               <Txt weight="bold" style={{ fontSize: 12 }}>
-                {register ? "Đăng nhập" : "Đăng ký"}
+                {register
+                  ? t("auth.switch_to_login")
+                  : t("auth.switch_to_register")}
               </Txt>
             </Tap>
           </View>

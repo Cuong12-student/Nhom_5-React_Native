@@ -1,0 +1,111 @@
+{
+  "auth": {
+    "login_title": "Welcome back.",
+    "login_sub": "Log in to continue managing your finances.",
+    "register_title": "Start your journey.",
+    "register_sub": "Daily expense tracking made effortless.",
+    "name": "Full name",
+    "username": "Email or Username",
+    "password": "Password",
+    "confirm_password": "Confirm Password",
+    "initial_balance": "Initial Balance (₫)",
+    "login_btn": "Log In",
+    "register_btn": "Sign Up",
+    "have_account": "Already have an account?",
+    "no_account": "Don't have an account?",
+    "switch_to_login": "Log In",
+    "switch_to_register": "Sign Up now"
+  },
+  "tabs": {
+    "home": "Home",
+    "history": "History",
+    "analytics": "Analytics",
+    "categories": "Categories"
+  },
+  "home": {
+    "brand": "MINT / DAILY FINANCE",
+    "greeting": "Hello",
+    "subtitle": "A fresh day, a fresh start.",
+    "available_balance": "Available Balance",
+    "wallet_name": "Personal Wallet",
+    "deposit": "Deposit",
+    "add_expense": "Add Expense",
+    "categories": "Categories",
+    "history": "History",
+    "recent_title": "Recent Expenses",
+    "see_all": "See all",
+    "empty_title": "No expenses yet",
+    "empty_body": "Record your daily expenses to manage your budget better.",
+    "add_button": "Add Expense",
+    "budget_progress": "Budget Progress",
+    "budget_initial": "Initial Budget",
+    "budget_spent": "Total Spent"
+  },
+  "history": {
+    "title": "Expense History",
+    "search_placeholder": "Search expense name...",
+    "all": "All",
+    "results": "results",
+    "empty_title": "No expenses found",
+    "empty_body": "Try changing the keyword or clearing category filters.",
+    "add_new": "Add new expense"
+  },
+  "analytics": {
+    "title": "Expense Analytics",
+    "allocation": "Expense Allocation",
+    "total_spent": "Total Spent",
+    "trend": "Spending Trend",
+    "last_6_months": "Last 6 months",
+    "empty_title": "No data available",
+    "empty_body": "No expenses recorded this month."
+  },
+  "categories": {
+    "title": "Categories",
+    "subtitle": "Classify expenses for detailed tracking",
+    "total_count": "Total categories",
+    "add_new": "Add new category",
+    "edit_title": "Edit Category",
+    "save": "Save Category",
+    "delete": "Delete Category",
+    "empty_title": "No categories yet",
+    "empty_body": "Create groups like Food, Shopping to organize expenses."
+  },
+  "category_names": {
+    "other": "Other"
+  },
+  "category_form": {
+    "add_title": "New Category",
+    "edit_title": "Edit Category",
+    "name_label": "Category Name",
+    "name_placeholder": "e.g., Coffee, Studies...",
+    "icon_label": "Icon",
+    "color_label": "Color",
+    "save": "Save Category",
+    "delete": "Delete Category"
+  },
+  "deposit": {
+    "title": "Top up wallet",
+    "subtitle": "Adjust your available spending balance",
+    "amount_label": "Amount to deposit (₫)",
+    "confirm": "Confirm deposit"
+  },
+  "transaction_form": {
+    "add_title": "Add Expense",
+    "edit_title": "Edit Expense",
+    "amount_label": "Amount (₫)",
+    "name_label": "Expense Name",
+    "name_placeholder": "e.g., Lunch",
+    "category_label": "Category",
+    "date_label": "Date",
+    "note_label": "Note",
+    "note_placeholder": "Optional",
+    "submit": "Save Expense"
+  },
+  "settings": {
+    "title": "Settings",
+    "app_desc": "Track expenses, organize categories, and manage wallets daily.",
+    "language": "Display Language",
+    "welcome_screen": "Back to Welcome Screen",
+    "team": "Project Team · 05"
+  }
+}

@@ -23,6 +23,7 @@ import SettingsScreen from "./src/screens/SettingsScreen";
 import { TransactionForm } from "./src/components/transaction-form";
 import { AuthScreen } from "./src/components/auth-screen";
 import { BottomTabBar, TabKey } from "./src/components/bottom-tab-bar";
+import { LanguageProvider } from "./src/contexts/languageContext";
 
 type ScreenType =
   | "onboarding"
@@ -160,18 +161,27 @@ export default function App() {
     "analytics",
     "categories",
   ].includes(currentScreen);
+  const handleTabPress = (tab: TabKey) => {
+    if (tab === "add") {
+      pushScreen("add");
+    } else {
+      setStack([tab]);
+    }
+  };
 
   return (
     <SafeAreaProvider>
-      <View style={{ flex: 1, backgroundColor: "#F7F7F0" }}>
-        <View style={{ flex: 1 }}>{renderScreen()}</View>
-        {isTabBarVisible && (
-          <BottomTabBar
-            currentTab={currentScreen as TabKey}
-            onSelectTab={switchTab}
-          />
-        )}
-      </View>
+      <LanguageProvider>
+        <View style={{ flex: 1, backgroundColor: "#F7F7F0" }}>
+          <View style={{ flex: 1 }}>{renderScreen()}</View>
+          {isTabBarVisible && (
+            <BottomTabBar
+              currentTab={currentScreen as TabKey}
+              onSelectTab={handleTabPress}
+            />
+          )}
+        </View>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

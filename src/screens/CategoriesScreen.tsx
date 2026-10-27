@@ -14,7 +14,7 @@ import {
 } from "../components/ui";
 import { C } from "../constants/colors";
 import { CATEGORIES } from "../constants/categories";
-
+import { useLanguage } from "../contexts/languageContext";
 export default function CategoriesScreen({
   categories = CATEGORIES,
   onAddCategory,
@@ -26,11 +26,12 @@ export default function CategoriesScreen({
   onSelectCategory?: (category: any) => void;
   onBack?: () => void;
 }) {
+  const { t } = useLanguage();
   return (
     <Screen>
       <Header
-        title="Danh mục chi tiêu"
-        subtitle="Phân loại để quản lý dòng tiền chi tiết"
+        title={t("categories.title")}
+        subtitle={t("categories.subtitle")}
         back={!!onBack}
         onBack={onBack}
       />
@@ -49,7 +50,7 @@ export default function CategoriesScreen({
         >
           <View style={{ gap: 8 }}>
             <Txt style={{ color: "#C7D9BE", fontSize: 12 }}>
-              Tổng số danh mục
+              {t("categories.total_count")}
             </Txt>
             <Txt weight="extra" style={{ color: "#fff", fontSize: 38 }}>
               {categories.length.toString().padStart(2, "0")}
@@ -60,7 +61,7 @@ export default function CategoriesScreen({
       </Enter>
 
       <Button
-        title="Thêm danh mục mới"
+        title={t("categories.add_new")}
         icon="add"
         onPress={onAddCategory || (() => {})}
       />
@@ -82,9 +83,9 @@ export default function CategoriesScreen({
         ))}
         {!categories.length && (
           <Empty
-            title="Chưa có danh mục"
-            body="Tạo các nhóm như Ăn uống, Mua sắm để quản lý khoản chi."
-            action="Thêm danh mục"
+            title={t("categories.empty_title")}
+            body={t("categories.empty_body")}
+            action={t("categories.add_new")}
             onPress={onAddCategory}
           />
         )}
