@@ -24,7 +24,9 @@ import { TransactionForm } from "./src/components/transaction-form";
 import { AuthScreen } from "./src/components/auth-screen";
 import { BottomTabBar, TabKey } from "./src/components/bottom-tab-bar";
 import { LanguageProvider } from "./src/contexts/languageContext";
-
+import { useAppInterstitialAd } from "./src/hooks/useInterstitialAd";
+import { InterstitialModal } from "./src/components/InterstitialModal";
+import { AdBanner } from "./src/components/AdBanner";
 type ScreenType =
   | "onboarding"
   | "auth_login"
@@ -43,6 +45,7 @@ export default function App() {
   const [stack, setStack] = useState<ScreenType[]>(["home"]);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const currentScreen = stack[stack.length - 1];
+  const { isAdVisible, navigateWithAd, handleCloseAd } = useAppInterstitialAd();
 
   const [fontsLoaded] = useFonts({
     Manrope_400Regular,
@@ -85,9 +88,19 @@ export default function App() {
           <AuthScreen register={false} onSubmit={() => switchTab("home")} />
         );
       case "add":
-        return <TransactionForm onBack={goBack} onSave={goBack} />;
+        return (
+          <TransactionForm
+            onBack={goBack}
+            onSave={() => navigateWithAd(goBack)}
+          />
+        );
       case "deposit":
-        return <DepositScreen onBack={goBack} onSave={goBack} />;
+        return (
+          <DepositScreen
+            onBack={goBack}
+            onSave={() => navigateWithAd(goBack)}
+          />
+        );
       case "categories":
         return (
           <CategoriesScreen
@@ -147,7 +160,7 @@ export default function App() {
             onAdd={() => pushScreen("add")}
             onCategories={() => pushScreen("categories")}
             onHistory={() => pushScreen("history")}
-            onSettings={() => pushScreen("settings")}
+            onSettings={() => navigateWithAd(() => pushScreen("settings"))}
             onDeposit={() => pushScreen("deposit")}
           />
         );
@@ -162,7 +175,12 @@ export default function App() {
     "categories",
   ].includes(currentScreen);
   const handleTabPress = (tab: TabKey) => {
-    if (tab === "add") {
+    if (tab === currentScreen) return; // Nếu đang ở chính tab đó thì không làm gì
+
+    if (tab === "analytics") {
+      // Bấm vào tab Thống kê: Chờ hiển thị và tắt quảng cáo xong mới chuyển trang
+      navigateWithAd(() => setStack(["analytics"]));
+    } else if (tab === "add") {
       pushScreen("add");
     } else {
       setStack([tab]);
@@ -173,13 +191,22 @@ export default function App() {
     <SafeAreaProvider>
       <LanguageProvider>
         <View style={{ flex: 1, backgroundColor: "#F7F7F0" }}>
+          {/* Màn hình nội dung chính */}
           <View style={{ flex: 1 }}>{renderScreen()}</View>
+
+          {/* 1. Banner Ad cố định ở đáy */}
+          <AdBanner />
+
+          {/* Thanh điều hướng dưới cùng (Bottom Tab Bar) */}
           {isTabBarVisible && (
             <BottomTabBar
               currentTab={currentScreen as TabKey}
               onSelectTab={handleTabPress}
             />
           )}
+
+          {/* 2. Modal quảng cáo toàn màn hình (sẽ tự bật khi gọi navigateWithAd) */}
+          <InterstitialModal visible={isAdVisible} onClose={handleCloseAd} />
         </View>
       </LanguageProvider>
     </SafeAreaProvider>
