@@ -28,10 +28,7 @@ export default function SettingsScreen({
           weight="extra"
           style={{ color: "#fff", fontSize: 23, letterSpacing: 2 }}
         >
-          {t("common.app_name")}
-        </Txt>
-        <Txt style={{ color: "#D3E0CA", fontSize: 12, lineHeight: 21 }}>
-          {t("common.app_desc")}
+          {t("settings.title")}
         </Txt>
       </View>
 
