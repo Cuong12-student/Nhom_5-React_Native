@@ -8,7 +8,7 @@ import {
 
 const adUnitId = __DEV__
   ? TestIds.ADAPTIVE_BANNER
-  : "ca-app-pub-xxxxxxxxxxxxx/yyyyyyyy";
+  : "ca-app-pub-1047018783596091/5009332753";
 
 export function AdBanner() {
   return (
