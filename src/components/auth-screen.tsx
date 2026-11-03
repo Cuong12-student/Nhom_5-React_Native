@@ -17,6 +17,7 @@ import { useLanguage } from "../contexts/languageContext";
 
 export interface AuthScreenProps {
   register?: boolean;
+  onSwitchMode?: () => void;
   onSubmit?: (data: {
     username: string;
     password: string;

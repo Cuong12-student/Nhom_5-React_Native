@@ -1,31 +1,15 @@
-import React, { useState } from "react";
-import { View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import React, { useState, useEffect } from "react";
 import {
-  Empty,
-  Enter,
-  Icon,
-  Screen,
-  Section,
-  Tap,
-  TransactionRow,
-  Txt,
-  s,
-} from "../components/ui";
-import { C } from "../constants/colors";
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { getTransactions, Transaction } from "../utils/storage";
 import { useLanguage } from "../contexts/languageContext";
 
-export default function HomeScreen({
-  userName = "Khiêm",
-  balance = 0,
-  initialBudget = 0,
-  recentTransactions = [],
-  onAdd,
-  onCategories,
-  onHistory,
-  onSettings,
-  onDeposit,
-}: {
+interface HomeScreenProps {
   userName?: string;
   balance?: number;
   initialBudget?: number;
@@ -35,260 +19,204 @@ export default function HomeScreen({
   onHistory?: () => void;
   onSettings?: () => void;
   onDeposit?: () => void;
-}) {
-  const [visible, setVisible] = useState(true);
+}
+
+export default function HomeScreen({
+  onAdd,
+  onCategories,
+  onHistory,
+  onSettings,
+  onDeposit,
+}: HomeScreenProps) {
   const { t } = useLanguage();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    const data = await getTransactions();
+    setTransactions(data);
+  };
+
+  const totalBalance = transactions.reduce((acc, item) => {
+    return item.type === "income" ? acc + item.amount : acc - item.amount;
+  }, 0);
 
   return (
-    <Screen>
-      <View style={[s.row, { justifyContent: "space-between", gap: 8 }]}>
-        <View style={{ flex: 1 }}>
-          <Txt style={{ color: C.muted, fontSize: 11, letterSpacing: 2 }}>
-            {t("home.brand")}
-          </Txt>
-          <Txt
-            weight="extra"
-            style={{ fontSize: 23, letterSpacing: -0.8, marginTop: 7 }}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 24 }}
+    >
+      {/* Lời chào & Nút cài đặt */}
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.greeting}>{t("home.greeting")} ✨</Text>
+          <Text style={styles.subGreeting}>{t("home.subtitle")}</Text>
+        </View>
+        <TouchableOpacity onPress={onSettings} style={styles.settingsBtn}>
+          <Text style={{ fontSize: 18 }}>⚙️</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Thẻ số dư ví */}
+      <View style={styles.card}>
+        <View style={styles.cardTop}>
+          <Text style={styles.cardLabel}>💼 {t("home.available_balance")}</Text>
+          <TouchableOpacity onPress={onDeposit} style={styles.depositBtn}>
+            <Text style={styles.depositText}>+ {t("home.deposit")}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.cardBalance}>
+          {totalBalance.toLocaleString("vi-VN")} đ
+        </Text>
+
+        <View style={styles.cardBottom}>
+          <Text style={styles.cardSub}>• {t("home.wallet_name")}</Text>
+          <Text style={styles.brandText}>mint.</Text>
+        </View>
+      </View>
+
+      {/* 3 nút thao tác nhanh */}
+      <View style={styles.quickActions}>
+        <TouchableOpacity style={styles.actionBtn} onPress={onAdd}>
+          <Text style={styles.actionIcon}>➕</Text>
+          <Text style={styles.actionLabel}>{t("home.add_expense")}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={onCategories}>
+          <Text style={styles.actionIcon}>🗂️</Text>
+          <Text style={styles.actionLabel}>{t("home.categories")}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={onHistory}>
+          <Text style={styles.actionIcon}>🕒</Text>
+          <Text style={styles.actionLabel}>{t("home.history")}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Danh sách giao dịch gần đây */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>{t("home.recent_title")}</Text>
+        <TouchableOpacity onPress={onHistory}>
+          <Text style={styles.seeAllText}>{t("home.see_all")}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {transactions.slice(0, 5).map((item) => (
+        <View key={item.id} style={styles.txItem}>
+          <Text style={styles.txTitle}>{item.title}</Text>
+          <Text
+            style={[
+              styles.txAmount,
+              { color: item.type === "income" ? "#16a34a" : "#dc2626" },
+            ]}
           >
-            {t("home.greeting")}, {userName}{" "}
-            <Txt style={{ color: C.gold }}>✦</Txt>
-          </Txt>
-          <Txt style={{ color: C.muted, fontSize: 11, marginTop: 5 }}>
-            {t("home.subtitle")}
-          </Txt>
+            {item.type === "income" ? "+" : "-"}
+            {item.amount.toLocaleString("vi-VN")} đ
+          </Text>
         </View>
-        <Tap
-          onPress={onSettings}
-          style={{
-            width: 43,
-            height: 43,
-            borderRadius: 22,
-            backgroundColor: "#E6EBDA",
-            alignItems: "center",
-          }}
-        >
-          <Txt weight="bold">K</Txt>
-          <View
-            style={{
-              position: "absolute",
-              right: -1,
-              bottom: 0,
-              borderWidth: 2,
-              borderColor: C.bg,
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: C.green2,
-            }}
-          />
-        </Tap>
-      </View>
+      ))}
 
-      <Enter>
-        <LinearGradient
-          colors={["#1C513C", "#0C3426"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            borderRadius: 26,
-            padding: 18,
-            minHeight: 158,
-            overflow: "hidden",
-          }}
-        >
-          <View style={[s.row, { justifyContent: "space-between" }]}>
-            <View style={[s.row, { gap: 7 }]}>
-              <Icon name="wallet-outline" size={16} color={C.lime} />
-              <Txt style={{ color: "#D0DFCA", fontSize: 12 }}>
-                {t("home.available_balance")}
-              </Txt>
-            </View>
-
-            <View style={[s.row, { gap: 10 }]}>
-              <Tap
-                onPress={onDeposit}
-                style={{
-                  backgroundColor: "rgba(218, 233, 174, 0.2)",
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderRadius: 12,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <Icon name="add-circle-outline" size={15} color={C.lime} />
-                <Txt weight="bold" style={{ color: C.lime, fontSize: 11 }}>
-                  {t("home.deposit")}
-                </Txt>
-              </Tap>
-
-              <Tap
-                onPress={() => setVisible(!visible)}
-                style={{ minHeight: 26, minWidth: 26, alignItems: "center" }}
-              >
-                <Icon
-                  name={visible ? "eye-outline" : "eye-off-outline"}
-                  color="#DAE9CC"
-                  size={18}
-                />
-              </Tap>
-            </View>
-          </View>
-
-          <View style={{ marginTop: 12, marginBottom: 10 }}>
-            <Txt
-              weight="extra"
-              adjustsFontSizeToFit
-              numberOfLines={1}
-              style={{ color: "#fff", fontSize: 34, letterSpacing: -1.3 }}
-            >
-              {visible
-                ? balance > 0
-                  ? `${balance.toLocaleString()} ₫`
-                  : "--- ₫"
-                : "••••••••"}
-            </Txt>
-          </View>
-
-          <View style={[s.row, { justifyContent: "space-between" }]}>
-            <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
-            >
-              <View
-                style={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: 3,
-                  backgroundColor: C.lime,
-                }}
-              />
-              <Txt style={{ color: "#B8D0B6", fontSize: 11 }}>
-                {t("home.wallet_name")}
-              </Txt>
-            </View>
-            <Txt
-              weight="extra"
-              style={{ color: "#A9C799", letterSpacing: 3, fontSize: 12 }}
-            >
-              mint.
-            </Txt>
-          </View>
-        </LinearGradient>
-      </Enter>
-
-      <Enter delay={160}>
-        <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
-          <Tap onPress={onAdd} style={{ alignItems: "center", gap: 8 }}>
-            <View
-              style={{
-                height: 48,
-                width: 58,
-                backgroundColor: C.pale,
-                borderRadius: 18,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Icon name="add" size={24} />
-            </View>
-            <Txt weight="semibold" style={{ fontSize: 11 }}>
-              {t("home.add_expense")}
-            </Txt>
-          </Tap>
-
-          <Tap onPress={onCategories} style={{ alignItems: "center", gap: 8 }}>
-            <View
-              style={{
-                height: 48,
-                width: 58,
-                backgroundColor: C.pale,
-                borderRadius: 18,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Icon name="grid-outline" size={24} />
-            </View>
-            <Txt weight="semibold" style={{ fontSize: 11 }}>
-              {t("home.categories")}
-            </Txt>
-          </Tap>
-
-          <Tap onPress={onHistory} style={{ alignItems: "center", gap: 8 }}>
-            <View
-              style={{
-                height: 48,
-                width: 58,
-                backgroundColor: C.pale,
-                borderRadius: 18,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Icon name="time-outline" size={24} />
-            </View>
-            <Txt weight="semibold" style={{ fontSize: 11 }}>
-              {t("home.history")}
-            </Txt>
-          </Tap>
-        </View>
-      </Enter>
-
-      <Enter delay={210}>
-        <Section
-          title={t("home.recent_title")}
-          action={t("home.see_all")}
-          onPress={onHistory}
-        />
-        <View style={{ marginTop: 3 }}>
-          {recentTransactions.map((tx) => (
-            <TransactionRow key={tx.id} tx={tx} />
-          ))}
-          {!recentTransactions.length && (
-            <Empty
-              title={t("home.empty_title")}
-              body={t("home.empty_body")}
-              action={t("home.add_button")}
-              onPress={onAdd}
-            />
-          )}
-        </View>
-      </Enter>
-
-      <View style={[s.card, { gap: 13 }]}>
-        <View style={[s.row, { justifyContent: "space-between" }]}>
-          <Txt weight="bold" style={{ fontSize: 12 }}>
-            {t("home.budget_progress")}
-          </Txt>
-          <Txt weight="extra" style={{ color: C.green }}>
-            ---%
-          </Txt>
-        </View>
-        <View
-          style={{
-            height: 7,
-            borderRadius: 4,
-            backgroundColor: C.pale,
-            overflow: "hidden",
-          }}
-        >
-          <View
-            style={{
-              height: 7,
-              width: "0%",
-              backgroundColor: C.green2,
-              borderRadius: 4,
-            }}
-          />
-        </View>
-        <Txt style={{ fontSize: 11, color: C.muted }}>
-          {t("home.budget_initial")}: --- ₫
-        </Txt>
-        <Txt style={{ fontSize: 11, color: C.muted }}>
-          {t("home.budget_spent")}: --- ₫
-        </Txt>
-      </View>
-    </Screen>
+      {transactions.length === 0 && (
+        <Text style={styles.emptyText}>{t("home.empty_title")}</Text>
+      )}
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F7F7F0",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  greeting: { fontSize: 20, fontWeight: "700", color: "#111827" },
+  subGreeting: { fontSize: 13, color: "#6b7280", marginTop: 2 },
+  settingsBtn: {
+    padding: 8,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 20,
+  },
+  card: {
+    backgroundColor: "#123F30",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  cardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  cardLabel: { color: "#D1FAE5", fontSize: 13 },
+  depositBtn: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  depositText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  cardBalance: {
+    color: "#fff",
+    fontSize: 32,
+    fontWeight: "800",
+    marginVertical: 18,
+  },
+  cardBottom: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  cardSub: { color: "#A7F3D0", fontSize: 12 },
+  brandText: { color: "#A7F3D0", fontSize: 14, fontWeight: "700" },
+  quickActions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 24,
+  },
+  actionBtn: { alignItems: "center" },
+  actionIcon: {
+    fontSize: 22,
+    backgroundColor: "#E5E7EB",
+    padding: 14,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  actionLabel: {
+    fontSize: 12,
+    color: "#374151",
+    marginTop: 6,
+    fontWeight: "500",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#1f2937" },
+  seeAllText: { fontSize: 13, color: "#2563eb" },
+  txItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  txTitle: { fontSize: 14, fontWeight: "500", color: "#1f2937" },
+  txAmount: { fontSize: 14, fontWeight: "700" },
+  emptyText: { textAlign: "center", color: "#9ca3af", marginTop: 20 },
+});
