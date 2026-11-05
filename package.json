@@ -35,5 +35,18 @@
     "ios": "expo run:ios",
     "web": "expo start --web"
   },
-  "private": true
+  "private": true,
+  "description": "Báo cáo tiến độ: https://docs.google.com/document/d/1p7lX6ZVZGQNLK2RQLSiG8ubewJod0Daob3aIMSeIvJk/edit?usp=sharing",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cuong12-student/Nhom_5-React_Native.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Cuong12-student/Nhom_5-React_Native/issues"
+  },
+  "homepage": "https://github.com/Cuong12-student/Nhom_5-React_Native#readme"
 }
