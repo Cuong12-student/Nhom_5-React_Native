@@ -82,12 +82,14 @@ export default function HomeScreen({
   );
 
   // Lấy category name
-  const getCategoryName = (catId: string) => {
+  const getCategoryName = (catId?: string) => {
+    if (!catId) return "Khác";
     const cat = CATEGORIES.find((c) => c.id === catId);
     return cat?.name || "Khác";
   };
 
-  const getCategoryIcon = (catId: string) => {
+  const getCategoryIcon = (catId?: string) => {
+    if (!catId) return "📦";
     const icons: Record<string, string> = {
       food: "🍔",
       travel: "🚗",
