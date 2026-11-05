@@ -5,6 +5,7 @@ import { Button, Chip, Field, Header, Icon, Screen, Tap, Txt, s } from "./ui";
 import { C } from "../constants/colors";
 import { CATEGORIES } from "../constants/categories";
 import { useLanguage } from "../contexts/languageContext";
+
 export function TransactionForm({
   id,
   initialData,
@@ -25,12 +26,35 @@ export function TransactionForm({
   const [category, setCategory] = useState(
     initialData?.categoryId || CATEGORIES[0].id,
   );
+  const [type, setType] = useState<"expense" | "income">(
+    initialData?.type || "expense",
+  );
   const [date, setDate] = useState(new Date());
   const [picker, setPicker] = useState<"date" | null>(null);
+  const [error, setError] = useState("");
 
   function handleSubmit() {
+    // Validate
+    if (!name.trim()) {
+      setError("Vui lòng nhập tên khoản chi!");
+      return;
+    }
+    const numAmount = Number(amount);
+    if (!numAmount || numAmount <= 0) {
+      setError("Vui lòng nhập số tiền hợp lệ!");
+      return;
+    }
+
+    setError("");
     if (onSave) {
-      onSave({ name, amount: Number(amount), category, date, note });
+      onSave({
+        name: name.trim(),
+        amount: numAmount,
+        category,
+        date,
+        note,
+        type,
+      });
     } else {
       onBack?.();
     }
@@ -47,9 +71,73 @@ export function TransactionForm({
         }
         onBack={onBack}
       />
+
+      {/* Chọn loại giao dịch: Chi tiêu / Thu nhập */}
+      <View style={{ gap: 8 }}>
+        <Txt weight="semibold" style={{ fontSize: 12 }}>
+          {t("transaction_form.type_label")}
+        </Txt>
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <Tap
+            onPress={() => setType("expense")}
+            style={{
+              flex: 1,
+              backgroundColor: type === "expense" ? "#FEE2E2" : "#fff",
+              borderWidth: 2,
+              borderColor: type === "expense" ? "#DC2626" : C.line,
+              borderRadius: 16,
+              paddingVertical: 14,
+              alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            <Txt style={{ fontSize: 18 }}>📉</Txt>
+            <Txt
+              weight={type === "expense" ? "bold" : "regular"}
+              style={{
+                color: type === "expense" ? "#DC2626" : C.muted,
+                fontSize: 14,
+              }}
+            >
+              {t("transaction_form.type_expense")}
+            </Txt>
+          </Tap>
+
+          <Tap
+            onPress={() => setType("income")}
+            style={{
+              flex: 1,
+              backgroundColor: type === "income" ? "#ECFDF5" : "#fff",
+              borderWidth: 2,
+              borderColor: type === "income" ? "#16A34A" : C.line,
+              borderRadius: 16,
+              paddingVertical: 14,
+              alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            <Txt style={{ fontSize: 18 }}>📈</Txt>
+            <Txt
+              weight={type === "income" ? "bold" : "regular"}
+              style={{
+                color: type === "income" ? "#16A34A" : C.muted,
+                fontSize: 14,
+              }}
+            >
+              {t("transaction_form.type_income")}
+            </Txt>
+          </Tap>
+        </View>
+      </View>
+
+      {/* Số tiền */}
       <View
         style={{
-          backgroundColor: C.pale,
+          backgroundColor: type === "expense" ? "#FEF2F2" : "#ECFDF5",
           borderRadius: 24,
           padding: 22,
           gap: 12,
@@ -59,7 +147,10 @@ export function TransactionForm({
           label={t("transaction_form.amount_label")}
           placeholder="0"
           value={amount}
-          onChangeText={setAmount}
+          onChangeText={(text) => {
+            setAmount(text.replace(/\D/g, ""));
+            setError("");
+          }}
           keyboardType="number-pad"
           style={{
             fontSize: 30,
@@ -70,15 +161,32 @@ export function TransactionForm({
             minHeight: 50,
           }}
         />
+        {amount !== "" && Number(amount) > 0 && (
+          <Txt
+            style={{
+              color: type === "expense" ? "#DC2626" : "#16A34A",
+              fontSize: 14,
+              fontWeight: "600",
+            }}
+          >
+            {type === "expense" ? "−" : "+"}{" "}
+            {Number(amount).toLocaleString("vi-VN")} ₫
+          </Txt>
+        )}
       </View>
 
+      {/* Tên khoản chi */}
       <Field
         label={t("transaction_form.name_label")}
         placeholder={t("transaction_form.name_placeholder")}
         value={name}
-        onChangeText={setName}
+        onChangeText={(text) => {
+          setName(text);
+          setError("");
+        }}
       />
 
+      {/* Danh mục */}
       <View style={{ gap: 10 }}>
         <Txt weight="semibold" style={{ fontSize: 12 }}>
           {t("transaction_form.category_label")}
@@ -100,6 +208,7 @@ export function TransactionForm({
         </ScrollView>
       </View>
 
+      {/* Ngày */}
       <View style={{ flexDirection: "row", gap: 10 }}>
         <View style={{ flex: 1, gap: 9 }}>
           <Txt weight="semibold" style={{ fontSize: 12 }}>
@@ -128,6 +237,7 @@ export function TransactionForm({
         />
       )}
 
+      {/* Ghi chú */}
       <Field
         label={t("transaction_form.note_label")}
         placeholder="Không bắt buộc"
@@ -136,6 +246,24 @@ export function TransactionForm({
         multiline
         style={{ minHeight: 90 }}
       />
+
+      {/* Error message */}
+      {error !== "" && (
+        <View
+          style={{
+            backgroundColor: "#FEE2E2",
+            borderRadius: 12,
+            padding: 12,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <Icon name="alert-circle-outline" size={18} color={C.red} />
+          <Txt style={{ color: C.red, fontSize: 13, flex: 1 }}>{error}</Txt>
+        </View>
+      )}
+
       <Button
         title={t("transaction_form.submit")}
         onPress={handleSubmit}

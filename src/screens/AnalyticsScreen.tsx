@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import {
@@ -14,23 +14,91 @@ import {
 } from "../components/ui";
 import { C } from "../constants/colors";
 import { useLanguage } from "../contexts/languageContext";
-export default function AnalysticScreen({
-  slices = [],
-  total = 0,
-  months = [],
-  onPrevMonth,
-  onNextMonth,
+import { CATEGORIES } from "../constants/categories";
+import {
+  getMonthlyExpense,
+  getMonthlyIncome,
+  getExpenseByCategory,
+  getLast6MonthsExpense,
+  getRemainingBudget,
+} from "../utils/storage";
+
+export default function AnalyticsScreen({
+  userId = 0,
+  refreshKey = 0,
 }: {
-  slices?: any[];
-  total?: number;
-  months?: any[];
-  onPrevMonth?: () => void;
-  onNextMonth?: () => void;
+  userId?: number;
+  refreshKey?: number;
 }) {
-  const [date] = useState(new Date());
+  const { t } = useLanguage();
+  const [viewDate, setViewDate] = useState(new Date());
+  const [totalExpense, setTotalExpense] = useState(0);
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [categoryBreakdown, setCategoryBreakdown] = useState<any[]>([]);
+  const [last6Months, setLast6Months] = useState<any[]>([]);
+  const [budgetInfo, setBudgetInfo] = useState({
+    limit: 5_000_000,
+    spent: 0,
+    remaining: 5_000_000,
+  });
+
+  const loadData = useCallback(() => {
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+
+    const expense = getMonthlyExpense(year, month);
+    const income = getMonthlyIncome(year, month);
+    const breakdown = getExpenseByCategory(year, month);
+    const trend = getLast6MonthsExpense(viewDate);
+
+    setTotalExpense(expense);
+    setTotalIncome(income);
+    setLast6Months(trend);
+
+    if (userId) {
+      setBudgetInfo(getRemainingBudget(userId, year, month));
+    }
+
+    // Map category info
+    const mappedBreakdown = breakdown.map((item) => {
+      const cat = CATEGORIES.find((c) => c.id === item.category);
+      return {
+        id: item.category,
+        name: cat?.name || "Khác",
+        icon: cat?.icon || "ellipse-outline",
+        color: cat?.color || "#8F9C92",
+        amount: item.amount,
+        fraction: item.fraction,
+      };
+    });
+    setCategoryBreakdown(mappedBreakdown);
+  }, [viewDate, userId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData, refreshKey]);
+
   const ring = 2 * Math.PI * 82;
-  const { language, t } = useLanguage();
-  const max = Math.max(...months.map((m) => m.amount), 1);
+  const max = Math.max(...last6Months.map((m) => m.amount), 1);
+
+  const monthLabel = `${String(viewDate.getMonth() + 1).padStart(2, "0")}/${viewDate.getFullYear()}`;
+  const isOverBudget = budgetInfo.remaining < 0;
+
+  function goNextMonth() {
+    setViewDate((prev) => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() + 1);
+      return d;
+    });
+  }
+
+  function goPrevMonth() {
+    setViewDate((prev) => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() - 1);
+      return d;
+    });
+  }
 
   return (
     <Screen>
@@ -42,6 +110,8 @@ export default function AnalysticScreen({
           </View>
         }
       />
+
+      {/* Chọn tháng */}
       <View
         style={[
           s.row,
@@ -56,18 +126,138 @@ export default function AnalysticScreen({
         <IconButton
           icon="chevron-back"
           label="Trước"
-          onPress={onPrevMonth || (() => {})}
+          onPress={goPrevMonth}
         />
         <Txt weight="bold" style={{ fontSize: 14 }}>
-          {`${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`}
+          {monthLabel}
         </Txt>
         <IconButton
           icon="chevron-forward"
           label="Sau"
-          onPress={onNextMonth || (() => {})}
+          onPress={goNextMonth}
         />
       </View>
 
+      {/* ─── Tổng quan Thu Chi ─── */}
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 10,
+          marginTop: 4,
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "#ECFDF5",
+            borderRadius: 16,
+            padding: 14,
+          }}
+        >
+          <Txt style={{ fontSize: 11, color: "#6B7280" }}>
+            {t("analytics.total_income")}
+          </Txt>
+          <Txt weight="extra" style={{ fontSize: 16, color: "#16A34A", marginTop: 4 }}>
+            +{totalIncome.toLocaleString()} ₫
+          </Txt>
+        </View>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "#FEF2F2",
+            borderRadius: 16,
+            padding: 14,
+          }}
+        >
+          <Txt style={{ fontSize: 11, color: "#6B7280" }}>
+            {t("analytics.total_spent")}
+          </Txt>
+          <Txt weight="extra" style={{ fontSize: 16, color: "#DC2626", marginTop: 4 }}>
+            -{totalExpense.toLocaleString()} ₫
+          </Txt>
+        </View>
+      </View>
+
+      {/* ─── Giới hạn chi tiêu tháng ─── */}
+      <View
+        style={{
+          backgroundColor: isOverBudget ? "#FEF2F2" : "#F0FDF4",
+          borderRadius: 16,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: isOverBudget ? "#FECACA" : "#BBF7D0",
+        }}
+      >
+        <View style={[s.row, { justifyContent: "space-between", marginBottom: 10 }]}>
+          <Txt weight="bold" style={{ fontSize: 13 }}>
+            🎯 {t("analytics.budget_title")}
+          </Txt>
+          <Txt
+            weight="bold"
+            style={{
+              fontSize: 12,
+              color: isOverBudget ? "#DC2626" : "#16A34A",
+            }}
+          >
+            {isOverBudget ? t("analytics.over_budget") : t("analytics.within_budget")}
+          </Txt>
+        </View>
+
+        {/* Progress bar */}
+        <View
+          style={{
+            height: 10,
+            backgroundColor: "#E5E7EB",
+            borderRadius: 5,
+            overflow: "hidden",
+            marginBottom: 10,
+          }}
+        >
+          <View
+            style={{
+              height: 10,
+              borderRadius: 5,
+              width: `${Math.min((budgetInfo.spent / budgetInfo.limit) * 100, 100)}%`,
+              backgroundColor: isOverBudget ? "#DC2626" : "#16A34A",
+            }}
+          />
+        </View>
+
+        <View style={[s.row, { justifyContent: "space-between" }]}>
+          <Txt style={{ fontSize: 12, color: "#6B7280" }}>
+            {t("analytics.spent")}: {budgetInfo.spent.toLocaleString()} ₫
+          </Txt>
+          <Txt style={{ fontSize: 12, color: "#6B7280" }}>
+            {t("analytics.limit")}: {budgetInfo.limit.toLocaleString()} ₫
+          </Txt>
+        </View>
+
+        <View
+          style={{
+            marginTop: 10,
+            backgroundColor: isOverBudget ? "#FEE2E2" : "#ECFDF5",
+            borderRadius: 10,
+            padding: 10,
+            alignItems: "center",
+          }}
+        >
+          <Txt style={{ fontSize: 11, color: "#6B7280" }}>
+            {t("analytics.remaining")}
+          </Txt>
+          <Txt
+            weight="extra"
+            style={{
+              fontSize: 20,
+              color: isOverBudget ? "#DC2626" : "#16A34A",
+              marginTop: 2,
+            }}
+          >
+            {budgetInfo.remaining.toLocaleString()} ₫
+          </Txt>
+        </View>
+      </View>
+
+      {/* ─── Biểu đồ tròn ─── */}
       <Enter>
         <Section title={t("analytics.allocation")} />
         <View
@@ -87,8 +277,8 @@ export default function AnalysticScreen({
               strokeWidth={26}
               fill="none"
             />
-            {slices.map((c, i) => {
-              const start = slices
+            {categoryBreakdown.map((c, i) => {
+              const start = categoryBreakdown
                 .slice(0, i)
                 .reduce((sum, item) => sum + item.fraction * ring, 0);
               return (
@@ -124,7 +314,7 @@ export default function AnalysticScreen({
               numberOfLines={1}
               style={{ fontSize: 22, letterSpacing: -0.8 }}
             >
-              {total.toLocaleString()} ₫
+              {totalExpense.toLocaleString()} ₫
             </Txt>
             <Txt style={{ fontSize: 11, color: C.muted }}>
               {t("analytics.total_spent")}
@@ -132,8 +322,9 @@ export default function AnalysticScreen({
           </View>
         </View>
 
+        {/* Danh sách phân bổ */}
         <View style={{ gap: 12, marginTop: 12 }}>
-          {slices.map((c) => (
+          {categoryBreakdown.map((c) => (
             <View
               key={c.id}
               style={[s.row, { justifyContent: "space-between" }]}
@@ -165,7 +356,7 @@ export default function AnalysticScreen({
             </View>
           ))}
         </View>
-        {!total && (
+        {!totalExpense && (
           <Empty
             title={t("analytics.empty_title")}
             body={t("analytics.empty_body")}
@@ -173,6 +364,62 @@ export default function AnalysticScreen({
         )}
       </Enter>
 
+      {/* ─── Tổng chi tiêu tháng này ─── */}
+      <View
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: 16,
+          padding: 18,
+          marginTop: 8,
+          borderWidth: 1,
+          borderColor: C.line,
+        }}
+      >
+        <Txt weight="bold" style={{ fontSize: 15, marginBottom: 12 }}>
+          📊 {t("analytics.monthly_summary")}
+        </Txt>
+        <View style={{ gap: 8 }}>
+          <View style={[s.row, { justifyContent: "space-between" }]}>
+            <Txt style={{ fontSize: 13, color: "#6B7280" }}>
+              {t("analytics.total_income")}
+            </Txt>
+            <Txt weight="bold" style={{ fontSize: 14, color: "#16A34A" }}>
+              +{totalIncome.toLocaleString()} ₫
+            </Txt>
+          </View>
+          <View style={[s.row, { justifyContent: "space-between" }]}>
+            <Txt style={{ fontSize: 13, color: "#6B7280" }}>
+              {t("analytics.total_spent")}
+            </Txt>
+            <Txt weight="bold" style={{ fontSize: 14, color: "#DC2626" }}>
+              -{totalExpense.toLocaleString()} ₫
+            </Txt>
+          </View>
+          <View
+            style={{
+              height: 1,
+              backgroundColor: C.line,
+              marginVertical: 4,
+            }}
+          />
+          <View style={[s.row, { justifyContent: "space-between" }]}>
+            <Txt weight="bold" style={{ fontSize: 14 }}>
+              {t("analytics.net_balance")}
+            </Txt>
+            <Txt
+              weight="extra"
+              style={{
+                fontSize: 16,
+                color: totalIncome - totalExpense >= 0 ? "#16A34A" : "#DC2626",
+              }}
+            >
+              {(totalIncome - totalExpense).toLocaleString()} ₫
+            </Txt>
+          </View>
+        </View>
+      </View>
+
+      {/* ─── Xu hướng 6 tháng ─── */}
       <View>
         <Section title={t("analytics.trend")} />
         <Txt style={{ fontSize: 11, color: C.muted }}>
@@ -181,7 +428,7 @@ export default function AnalysticScreen({
         <View
           style={{ flexDirection: "row", height: 155, gap: 12, marginTop: 15 }}
         >
-          {months.map((m, i) => (
+          {last6Months.map((m, i) => (
             <View key={i} style={{ flex: 1, alignItems: "center" }}>
               <View
                 style={{
@@ -195,19 +442,33 @@ export default function AnalysticScreen({
                     height: Math.max(4, (m.amount / max) * 110),
                     width: "100%",
                     backgroundColor:
-                      i === months.length - 1 ? C.green : "#A9BBA6",
+                      i === last6Months.length - 1 ? C.green : "#A9BBA6",
                     borderTopLeftRadius: 6,
                     borderTopRightRadius: 6,
                   }}
                 />
               </View>
+              {/* Hiện số tiền trên cột */}
+              <Txt
+                numberOfLines={1}
+                style={{
+                  fontSize: 8,
+                  color: C.muted,
+                  marginTop: 2,
+                  textAlign: "center",
+                }}
+              >
+                {m.amount > 0
+                  ? `${(m.amount / 1_000_000).toFixed(1)}tr`
+                  : "0"}
+              </Txt>
               <Txt
                 numberOfLines={2}
                 style={{
-                  height: 36,
-                  lineHeight: 16,
-                  marginTop: 9,
-                  fontSize: 11,
+                  height: 30,
+                  lineHeight: 14,
+                  marginTop: 3,
+                  fontSize: 10,
                   color: C.muted,
                   textAlign: "center",
                 }}
