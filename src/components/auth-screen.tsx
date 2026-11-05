@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { View } from "react-native";
-import { router } from "expo-router";
+import { View, Alert } from "react-native";
 import {
   Button,
   Enter,
@@ -14,49 +13,85 @@ import {
 } from "./ui";
 import { C } from "../constants/colors";
 import { useLanguage } from "../contexts/languageContext";
+import { registerUser, loginUser, User } from "../utils/storage";
 
 export interface AuthScreenProps {
   register?: boolean;
   onSwitchMode?: () => void;
-  onSubmit?: (data: {
-    username: string;
-    password: string;
-    name?: string;
-    initialBalance?: string;
-  }) => void;
+  onSubmit?: (userData: User) => void;
 }
 
-export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
-  const [username, setUsername] = useState("");
+export function AuthScreen({
+  register = false,
+  onSubmit,
+  onSwitchMode,
+}: AuthScreenProps) {
+  const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [initialBalance, setInitialBalance] = useState("0");
   const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const { t } = useLanguage();
 
-  function handlePress() {
-    if (onSubmit) {
-      onSubmit({ username, password, name, initialBalance });
-    } else {
-      try {
-        router.replace("/home");
-      } catch (e) {
-        console.log("Chưa cấu hình router:", e);
+  async function handlePress() {
+    setError("");
+    setBusy(true);
+
+    try {
+      if (register) {
+        // Validate
+        if (!name.trim()) {
+          setError("Vui lòng nhập họ và tên!");
+          setBusy(false);
+          return;
+        }
+        if (!email.trim()) {
+          setError("Vui lòng nhập email!");
+          setBusy(false);
+          return;
+        }
+        if (!password.trim()) {
+          setError("Vui lòng nhập mật khẩu!");
+          setBusy(false);
+          return;
+        }
+        if (password !== confirm) {
+          setError("Mật khẩu nhập lại không khớp!");
+          setBusy(false);
+          return;
+        }
+
+        const user = await registerUser(name, email, password);
+        if (onSubmit) onSubmit(user);
+      } else {
+        // Login
+        if (!email.trim()) {
+          setError("Vui lòng nhập email!");
+          setBusy(false);
+          return;
+        }
+        if (!password.trim()) {
+          setError("Vui lòng nhập mật khẩu!");
+          setBusy(false);
+          return;
+        }
+
+        const user = await loginUser(email, password);
+        if (onSubmit) onSubmit(user);
       }
+    } catch (e: any) {
+      setError(e.message || "Đã xảy ra lỗi!");
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
     <Screen>
       <View style={[s.row, { justifyContent: "space-between" }]}>
-        <IconButton
-          icon="arrow-back"
-          label="Đóng"
-          onPress={() =>
-            router.canGoBack() ? router.back() : router.replace("/")
-          }
-        />
+        <View />
         <View style={s.row}>
           <Icon name="leaf" size={18} color={C.green2} />
           <Txt weight="extra" style={{ letterSpacing: 2, fontSize: 22 }}>
@@ -103,8 +138,8 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
           )}
           <Field
             label={t("auth.username")}
-            value={username}
-            onChangeText={setUsername}
+            value={email}
+            onChangeText={setEmail}
             autoCapitalize="none"
             autoCorrect={false}
             autoComplete="off"
@@ -136,19 +171,30 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
               autoComplete="off"
             />
           )}
-          {register && (
-            <Field
-              label={t("auth.initial_balance")}
-              value={initialBalance}
-              onChangeText={setInitialBalance}
-              keyboardType="number-pad"
-              maxLength={14}
-            />
+
+          {/* Error message */}
+          {error !== "" && (
+            <View
+              style={{
+                backgroundColor: "#FEE2E2",
+                borderRadius: 12,
+                padding: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Icon name="alert-circle-outline" size={18} color={C.red} />
+              <Txt style={{ color: C.red, fontSize: 13, flex: 1 }}>
+                {error}
+              </Txt>
+            </View>
           )}
 
           <Button
             title={register ? t("auth.register_btn") : t("auth.login_btn")}
             onPress={handlePress}
+            busy={busy}
           />
 
           <View
@@ -160,10 +206,8 @@ export function AuthScreen({ register = false, onSubmit }: AuthScreenProps) {
             <Txt style={{ color: C.muted, fontSize: 12 }}>
               {register ? t("auth.have_account") : t("auth.no_account")}
             </Txt>
-            <Tap
-              onPress={() => router.replace(register ? "/login" : "/register")}
-            >
-              <Txt weight="bold" style={{ fontSize: 12 }}>
+            <Tap onPress={onSwitchMode}>
+              <Txt weight="bold" style={{ fontSize: 12, color: C.green }}>
                 {register
                   ? t("auth.switch_to_login")
                   : t("auth.switch_to_register")}

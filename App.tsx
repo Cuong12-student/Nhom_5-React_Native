@@ -14,7 +14,7 @@ import {
 import OnboardingScreen from "./src/screens/OnboardingScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import HistoryScreen from "./src/screens/HistoryScreen";
-import AnalysticScreen from "./src/screens/AnalyticsScreen";
+import AnalyticsScreen from "./src/screens/AnalyticsScreen";
 import CategoriesScreen from "./src/screens/CategoriesScreen";
 import CategoryScreen from "./src/screens/CategoryScreen";
 import DepositScreen from "./src/screens/DepositScreen";
@@ -26,6 +26,13 @@ import { BottomTabBar, TabKey } from "./src/components/bottom-tab-bar";
 import { LanguageProvider } from "./src/contexts/languageContext";
 import { useAppInterstitialAd } from "./src/hooks/useInterstitialAd";
 import { AdBanner } from "./src/components/AdBanner";
+import {
+  User,
+  addTransaction,
+  depositToWallet,
+  getTransactions,
+  setSpendLimit,
+} from "./src/utils/storage";
 
 type ScreenType =
   | "onboarding"
@@ -42,13 +49,16 @@ type ScreenType =
   | "settings";
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<{
-    id: number;
-    name: string;
-  } | null>(null);
+  // ─── Auth State ─────────────────────────────────
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  const [stack, setStack] = useState<ScreenType[]>(["home"]);
+  // ─── Navigation State ───────────────────────────
+  const [stack, setStack] = useState<ScreenType[]>(["auth_login"]);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
+
+  // ─── Refresh trigger (dùng để force re-render khi dữ liệu thay đổi) ──
+  const [refreshKey, setRefreshKey] = useState(0);
+  const triggerRefresh = () => setRefreshKey((k) => k + 1);
 
   const currentScreen = stack[stack.length - 1];
   const { navigateWithAd } = useAppInterstitialAd();
@@ -81,6 +91,55 @@ export default function App() {
     setStack([tab]);
   };
 
+  // ─── Xử lý đăng nhập / đăng ký thành công ─────
+  const handleAuthSuccess = (user: User) => {
+    setCurrentUser(user);
+    triggerRefresh();
+    setStack(["home"]);
+  };
+
+  // ─── Xử lý đăng xuất ──────────────────────────
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setStack(["auth_login"]);
+  };
+
+  // ─── Xử lý nạp tiền ───────────────────────────
+  const handleDeposit = async (amount: number) => {
+    if (currentUser) {
+      await depositToWallet(currentUser.id, amount);
+      triggerRefresh();
+      goBack();
+    }
+  };
+
+  // ─── Xử lý thêm giao dịch ─────────────────────
+  const handleSaveTransaction = async (data: any) => {
+    await addTransaction(
+      {
+        title: data.name,
+        amount: data.amount,
+        type: data.type || "expense",
+        category: data.category,
+        date: data.date instanceof Date
+          ? data.date.toISOString().split("T")[0]
+          : data.date,
+        note: data.note,
+      },
+      currentUser?.id,
+    );
+    triggerRefresh();
+    goBack();
+  };
+
+  // ─── Xử lý thay đổi hạn mức ──────────────────
+  const handleSetSpendLimit = async (limit: number) => {
+    if (currentUser) {
+      await setSpendLimit(currentUser.id, limit);
+      triggerRefresh();
+    }
+  };
+
   const renderScreen = () => {
     switch (currentScreen) {
       case "onboarding":
@@ -90,11 +149,8 @@ export default function App() {
         return (
           <AuthScreen
             register={true}
-            onSubmit={(userData?: any) => {
-              if (userData) setCurrentUser(userData);
-              switchTab("home");
-            }}
-            onSwitchMode={() => pushScreen("auth_login")}
+            onSubmit={handleAuthSuccess}
+            onSwitchMode={() => setStack(["auth_login"])}
           />
         );
 
@@ -102,11 +158,8 @@ export default function App() {
         return (
           <AuthScreen
             register={false}
-            onSubmit={(userData?: any) => {
-              if (userData) setCurrentUser(userData);
-              switchTab("home");
-            }}
-            onSwitchMode={() => pushScreen("auth_register")}
+            onSubmit={handleAuthSuccess}
+            onSwitchMode={() => setStack(["auth_register"])}
           />
         );
 
@@ -114,7 +167,9 @@ export default function App() {
         return (
           <TransactionForm
             onBack={goBack}
-            onSave={() => navigateWithAd(goBack)}
+            onSave={(data) =>
+              navigateWithAd(() => handleSaveTransaction(data))
+            }
           />
         );
 
@@ -122,7 +177,9 @@ export default function App() {
         return (
           <DepositScreen
             onBack={goBack}
-            onSave={() => navigateWithAd(goBack)}
+            onSave={(amount) =>
+              navigateWithAd(() => handleDeposit(amount))
+            }
           />
         );
 
@@ -170,13 +227,21 @@ export default function App() {
         );
 
       case "analytics":
-        return <AnalysticScreen />;
+        return (
+          <AnalyticsScreen
+            userId={currentUser?.id || 0}
+            refreshKey={refreshKey}
+          />
+        );
 
       case "settings":
         return (
           <SettingsScreen
             onBack={goBack}
             onResetToOnboarding={() => pushScreen("onboarding")}
+            onLogout={handleLogout}
+            userId={currentUser?.id || 0}
+            onSetSpendLimit={handleSetSpendLimit}
           />
         );
 
@@ -185,9 +250,8 @@ export default function App() {
         return (
           <HomeScreen
             userName={currentUser?.name || "Người dùng"}
-            balance={0}
-            initialBudget={0}
-            recentTransactions={[]}
+            userId={currentUser?.id || 0}
+            refreshKey={refreshKey}
             onAdd={() => pushScreen("add")}
             onCategories={() => pushScreen("categories")}
             onHistory={() => pushScreen("history")}

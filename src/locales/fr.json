@@ -26,7 +26,7 @@
     "brand": "MINT / DAILY FINANCE",
     "greeting": "Bonjour",
     "subtitle": "Un nouveau jour, un bon départ.",
-    "available_balance": "Solde disponible",
+    "available_balance": "Solde du portefeuille",
     "wallet_name": "Portefeuille personnel",
     "deposit": "Recharger",
     "add_expense": "Ajouter",
@@ -39,7 +39,14 @@
     "add_button": "Ajouter une dépense",
     "budget_progress": "Progression du budget",
     "budget_initial": "Budget initial",
-    "budget_spent": "Total dépensé"
+    "budget_spent": "Dépensé",
+    "monthly_income": "Revenu mensuel",
+    "monthly_expense": "Dépenses mensuelles",
+    "spend_limit": "Limite de dépenses mensuelle",
+    "over_budget": "Dépassé !",
+    "within_budget": "Dans la limite",
+    "budget_limit": "Limite",
+    "budget_remaining": "Restant dans la limite"
   },
   "history": {
     "title": "Historique des dépenses",
@@ -51,13 +58,22 @@
     "add_new": "Ajouter une dépense"
   },
   "analytics": {
-    "title": "Statistiques des dépenses",
+    "title": "Statistiques revenus et dépenses",
     "allocation": "Répartition des dépenses",
     "total_spent": "Total dépensé",
+    "total_income": "Revenu total",
+    "net_balance": "Solde net",
     "trend": "Tendance des dépenses",
     "last_6_months": "6 derniers mois",
     "empty_title": "Aucune donnée",
-    "empty_body": "Aucune dépense enregistrée ce mois-ci."
+    "empty_body": "Aucune dépense enregistrée ce mois-ci.",
+    "budget_title": "Limite de dépenses",
+    "over_budget": "Dépassé !",
+    "within_budget": "Dans la limite",
+    "spent": "Dépensé",
+    "limit": "Limite",
+    "remaining": "Restant dans la limite",
+    "monthly_summary": "Résumé mensuel"
   },
   "categories": {
     "title": "Catégories",
@@ -82,27 +98,38 @@
   },
   "deposit": {
     "title": "Recharger le portefeuille",
-    "subtitle": "Ajustez votre solde de dépenses disponible",
+    "subtitle": "Choisissez le montant et la méthode",
     "amount_label": "Montant à recharger (₫)",
-    "confirm": "Confirmer"
+    "confirm": "Confirmer le rechargement",
+    "quick_amount": "Rechargement rapide",
+    "method": "Méthode de rechargement",
+    "bank_transfer": "Virement bancaire",
+    "card": "Carte bancaire",
+    "e_wallet": "Portefeuille électronique"
   },
   "transaction_form": {
-    "add_title": "Ajouter une dépense",
-    "edit_title": "Modifier la dépense",
+    "add_title": "Ajouter une transaction",
+    "edit_title": "Modifier la transaction",
     "amount_label": "Montant (₫)",
-    "name_label": "Nom de la dépense",
+    "name_label": "Nom de la transaction",
     "name_placeholder": "Ex: Déjeuner",
     "category_label": "Catégorie",
     "date_label": "Date",
     "note_label": "Note",
     "note_placeholder": "Facultatif",
-    "submit": "Enregistrer"
+    "submit": "Enregistrer",
+    "type_label": "Type de transaction",
+    "type_expense": "Dépense",
+    "type_income": "Revenu"
   },
   "settings": {
     "title": "Paramètres",
     "app_desc": "Suivez les dépenses et gérez votre portefeuille au quotidien.",
     "language": "Langue d'affichage",
     "welcome_screen": "Retour à l'accueil",
-    "team": "Équipe du projet · 05"
+    "team": "Équipe du projet · 05",
+    "logout": "Déconnexion",
+    "spend_limit": "Limite de dépenses mensuelle",
+    "spend_limit_desc": "Par défaut: 5.000.000 ₫/mois"
   }
 }

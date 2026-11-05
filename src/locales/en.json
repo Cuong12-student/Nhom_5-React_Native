@@ -26,7 +26,7 @@
     "brand": "MINT / DAILY FINANCE",
     "greeting": "Hello",
     "subtitle": "A fresh day, a fresh start.",
-    "available_balance": "Available Balance",
+    "available_balance": "Wallet Balance",
     "wallet_name": "Personal Wallet",
     "deposit": "Deposit",
     "add_expense": "Add Expense",
@@ -39,7 +39,14 @@
     "add_button": "Add Expense",
     "budget_progress": "Budget Progress",
     "budget_initial": "Initial Budget",
-    "budget_spent": "Total Spent"
+    "budget_spent": "Spent",
+    "monthly_income": "Monthly Income",
+    "monthly_expense": "Monthly Expense",
+    "spend_limit": "Monthly Spending Limit",
+    "over_budget": "Over limit!",
+    "within_budget": "Within limit",
+    "budget_limit": "Limit",
+    "budget_remaining": "Remaining in limit"
   },
   "history": {
     "title": "Expense History",
@@ -51,13 +58,22 @@
     "add_new": "Add new expense"
   },
   "analytics": {
-    "title": "Expense Analytics",
+    "title": "Income & Expense Analytics",
     "allocation": "Expense Allocation",
     "total_spent": "Total Spent",
+    "total_income": "Total Income",
+    "net_balance": "Net Balance",
     "trend": "Spending Trend",
     "last_6_months": "Last 6 months",
     "empty_title": "No data available",
-    "empty_body": "No expenses recorded this month."
+    "empty_body": "No expenses recorded this month.",
+    "budget_title": "Spending Limit",
+    "over_budget": "Over limit!",
+    "within_budget": "Within limit",
+    "spent": "Spent",
+    "limit": "Limit",
+    "remaining": "Remaining in limit",
+    "monthly_summary": "Monthly Summary"
   },
   "categories": {
     "title": "Categories",
@@ -85,27 +101,38 @@
   },
   "deposit": {
     "title": "Top up wallet",
-    "subtitle": "Adjust your available spending balance",
+    "subtitle": "Choose amount and deposit method",
     "amount_label": "Amount to deposit (₫)",
-    "confirm": "Confirm deposit"
+    "confirm": "Confirm deposit",
+    "quick_amount": "Quick deposit",
+    "method": "Deposit method",
+    "bank_transfer": "Bank Transfer",
+    "card": "Bank Card",
+    "e_wallet": "E-Wallet"
   },
   "transaction_form": {
-    "add_title": "Add Expense",
-    "edit_title": "Edit Expense",
+    "add_title": "Add Transaction",
+    "edit_title": "Edit Transaction",
     "amount_label": "Amount (₫)",
-    "name_label": "Expense Name",
+    "name_label": "Transaction Name",
     "name_placeholder": "e.g., Lunch",
     "category_label": "Category",
     "date_label": "Date",
     "note_label": "Note",
     "note_placeholder": "Optional",
-    "submit": "Save Expense"
+    "submit": "Save Transaction",
+    "type_label": "Transaction Type",
+    "type_expense": "Expense",
+    "type_income": "Income"
   },
   "settings": {
     "title": "Settings",
     "app_desc": "Track expenses, organize categories, and manage wallets daily.",
     "language": "Display Language",
     "welcome_screen": "Back to Welcome Screen",
-    "team": "Project Team · 05"
+    "team": "Project Team · 05",
+    "logout": "Log Out",
+    "spend_limit": "Monthly Spending Limit",
+    "spend_limit_desc": "Default: 5,000,000 ₫/month"
   }
 }

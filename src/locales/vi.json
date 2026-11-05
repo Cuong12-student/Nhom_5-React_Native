@@ -26,7 +26,7 @@
     "brand": "MINT / DAILY FINANCE",
     "greeting": "Chào bạn",
     "subtitle": "Một ngày mới, một khởi đầu tốt.",
-    "available_balance": "Số dư khả dụng",
+    "available_balance": "Số dư ví",
     "wallet_name": "Ví cá nhân",
     "deposit": "Nạp tiền",
     "add_expense": "Thêm chi tiêu",
@@ -39,7 +39,14 @@
     "add_button": "Thêm khoản chi",
     "budget_progress": "Tiến độ ngân sách",
     "budget_initial": "Ngân sách ban đầu",
-    "budget_spent": "Tổng đã chi"
+    "budget_spent": "Đã chi",
+    "monthly_income": "Thu nhập tháng",
+    "monthly_expense": "Chi tiêu tháng",
+    "spend_limit": "Giới hạn chi tiêu tháng",
+    "over_budget": "Vượt hạn mức!",
+    "within_budget": "Trong hạn mức",
+    "budget_limit": "Hạn mức",
+    "budget_remaining": "Còn lại trong hạn mức"
   },
   "history": {
     "title": "Lịch sử chi tiêu",
@@ -51,13 +58,22 @@
     "add_new": "Thêm chi tiêu mới"
   },
   "analytics": {
-    "title": "Thống kê chi tiêu",
+    "title": "Thống kê thu chi",
     "allocation": "Phân bổ chi tiêu",
     "total_spent": "Tổng đã chi",
+    "total_income": "Tổng thu nhập",
+    "net_balance": "Chênh lệch thu chi",
     "trend": "Xu hướng chi tiêu",
     "last_6_months": "6 tháng gần nhất",
     "empty_title": "Chưa có dữ liệu",
-    "empty_body": "Tháng này chưa phát sinh khoản chi tiêu nào."
+    "empty_body": "Tháng này chưa phát sinh khoản chi tiêu nào.",
+    "budget_title": "Giới hạn chi tiêu",
+    "over_budget": "Vượt hạn mức!",
+    "within_budget": "Trong hạn mức",
+    "spent": "Đã chi",
+    "limit": "Hạn mức",
+    "remaining": "Còn lại trong hạn mức",
+    "monthly_summary": "Tổng kết tháng"
   },
   "categories": {
     "title": "Danh mục chi tiêu",
@@ -85,9 +101,14 @@
   },
   "deposit": {
     "title": "Nạp tiền vào ví",
-    "subtitle": "Điều chỉnh ngân sách chi tiêu khả dụng",
+    "subtitle": "Chọn số tiền và phương thức nạp tiền",
     "amount_label": "Số tiền muốn nạp (₫)",
-    "confirm": "Xác nhận nạp"
+    "confirm": "Xác nhận nạp tiền",
+    "quick_amount": "Nạp nhanh",
+    "method": "Phương thức nạp",
+    "bank_transfer": "Chuyển khoản",
+    "card": "Thẻ ngân hàng",
+    "e_wallet": "Ví điện tử"
   },
   "transaction_form": {
     "add_title": "Thêm khoản chi",
@@ -99,13 +120,19 @@
     "date_label": "Ngày chi",
     "note_label": "Ghi chú",
     "note_placeholder": "Không bắt buộc",
-    "submit": "Lưu khoản chi"
+    "submit": "Lưu khoản chi",
+    "type_label": "Loại giao dịch",
+    "type_expense": "Chi tiêu",
+    "type_income": "Thu nhập"
   },
   "settings": {
     "title": "Cài đặt",
     "app_desc": "Ghi lại chi tiêu, sắp xếp danh mục và theo dõi ví mỗi ngày.",
     "language": "Ngôn ngữ hiển thị",
     "welcome_screen": "Về màn hình chào",
-    "team": "Nhóm thực hiện · 05"
+    "team": "Nhóm thực hiện · 05",
+    "logout": "Đăng xuất",
+    "spend_limit": "Giới hạn chi tiêu tháng",
+    "spend_limit_desc": "Mặc định: 5.000.000 ₫/tháng"
   }
 }
