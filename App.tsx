@@ -121,9 +121,10 @@ export default function App() {
         amount: data.amount,
         type: data.type || "expense",
         category: data.category,
-        date: data.date instanceof Date
-          ? data.date.toISOString().split("T")[0]
-          : data.date,
+        date:
+          data.date instanceof Date
+            ? data.date.toISOString().split("T")[0]
+            : data.date,
         note: data.note,
       },
       currentUser?.id,
@@ -143,7 +144,7 @@ export default function App() {
   const renderScreen = () => {
     switch (currentScreen) {
       case "onboarding":
-        return <OnboardingScreen />;
+        return <OnboardingScreen onFinish={() => setStack(["auth_login"])} />;
 
       case "auth_register":
         return (
@@ -167,9 +168,7 @@ export default function App() {
         return (
           <TransactionForm
             onBack={goBack}
-            onSave={(data) =>
-              navigateWithAd(() => handleSaveTransaction(data))
-            }
+            onSave={(data) => navigateWithAd(() => handleSaveTransaction(data))}
           />
         );
 
@@ -177,9 +176,7 @@ export default function App() {
         return (
           <DepositScreen
             onBack={goBack}
-            onSave={(amount) =>
-              navigateWithAd(() => handleDeposit(amount))
-            }
+            onSave={(amount) => navigateWithAd(() => handleDeposit(amount))}
           />
         );
 

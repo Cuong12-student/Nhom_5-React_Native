@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Trang Chủ</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="admin-layout">
+      <!-- Sidebar -->
+      <aside class="admin-sidebar">
+        <div class="brand">FINANCE ADMIN</div>
+        <nav class="admin-nav">
+          <a href="index.html" class="active">Trang Chủ</a>
+          <a href="users.html">Quản Lý Người Dùng</a>
+          <a href="system.html">Quản Lý Hệ Thống</a>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="status-dot"></span> Server: Cổng 5000
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-content">
+        <div class="page-header">
+          <h1 class="page-title">Tổng Quan Hệ Thống</h1>
+          <p class="page-subtitle">
+            Thống kê lưu lượng và dữ liệu thời gian thực
+          </p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Tổng Người Dùng</div>
+            <div id="stat-users" class="stat-value">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Tổng Giao Dịch Ghi Nhận</div>
+            <div id="stat-transactions" class="stat-value">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Trạng Thái Tài Khoản</div>
+            <div
+              id="stat-account-status"
+              class="stat-value highlight"
+              style="font-size: 20px"
+            >
+              <span style="color: #10b981" id="stat-active">-- Hoạt động</span>
+              <span style="color: #9ca3af">/</span>
+              <span style="color: #ef4444" id="stat-blocked">-- Bị khóa</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      async function loadStats() {
+        try {
+          const res = await fetch("/api/admin/dashboard");
+          const data = await res.json();
+          document.getElementById("stat-users").innerText =
+            data.usersCount || 0;
+          document.getElementById("stat-transactions").innerText =
+            data.transactionsCount || 0;
+          document.getElementById("stat-active").innerText =
+            `${data.activeCount || 0} Hoạt động`;
+          document.getElementById("stat-blocked").innerText =
+            `${data.blockedCount || 0} Bị khóa`;
+        } catch (err) {
+          console.error("Lỗi nạp thống kê:", err);
+        }
+      }
+      window.onload = loadStats;
+    </script>
+  </body>
+</html>

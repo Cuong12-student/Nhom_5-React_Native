@@ -2,12 +2,12 @@ import React, { useRef, useState } from "react";
 import { ScrollView, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
 import { Button, Icon, Tap, Txt, s } from "../components/ui";
 import { WalletArt } from "../components/wallet-art";
 import { JourneyArt } from "../components/journey-art";
 import { C } from "../constants/colors";
 import { useLanguage } from "../contexts/languageContext";
+
 const slides = [
   {
     title: "Tiền của bạn.\nNgày tốt hơn.",
@@ -26,7 +26,11 @@ const slides = [
   },
 ];
 
-export default function OnboardingScreen() {
+interface OnboardingScreenProps {
+  onFinish?: () => void;
+}
+
+export default function OnboardingScreen({ onFinish }: OnboardingScreenProps) {
   const dimensions = useWindowDimensions();
   const compact = dimensions.height < 760;
   const [width, setWidth] = useState(Math.min(dimensions.width, 600));
@@ -37,6 +41,12 @@ export default function OnboardingScreen() {
     const next = Math.max(0, Math.min(slides.length - 1, index));
     setPage(next);
     pager.current?.scrollTo({ x: next * width, animated: true });
+  }
+
+  function handleComplete() {
+    if (onFinish) {
+      onFinish();
+    }
   }
 
   return (
@@ -64,7 +74,7 @@ export default function OnboardingScreen() {
                   mint.
                 </Txt>
               </View>
-              <Tap onPress={() => router.replace("/home")}>
+              <Tap onPress={handleComplete}>
                 <Txt style={{ color: "#D1DDCD", fontSize: 12 }}>
                   Khám phá ngay ↗
                 </Txt>
@@ -186,9 +196,7 @@ export default function OnboardingScreen() {
               title={page === slides.length - 1 ? "Bắt đầu ngay" : "Tiếp theo"}
               light
               onPress={() =>
-                page < slides.length - 1
-                  ? goTo(page + 1)
-                  : router.push("/login")
+                page < slides.length - 1 ? goTo(page + 1) : handleComplete()
               }
             />
             <Txt

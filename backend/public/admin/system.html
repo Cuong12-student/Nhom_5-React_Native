@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Quản Lý Hệ Thống</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="admin-layout">
+      <!-- Sidebar -->
+      <aside class="admin-sidebar">
+        <div class="brand">FINANCE ADMIN</div>
+        <nav class="admin-nav">
+          <a href="index.html">Trang Chủ</a>
+          <a href="users.html">Quản Lý Người Dùng</a>
+          <a href="system.html" class="active">Quản Lý Hệ Thống</a>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="status-dot"></span> Server: Cổng 5000
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-content">
+        <div class="page-header">
+          <h1 class="page-title">Quản Lý Hệ Thống</h1>
+          <p class="page-subtitle">
+            Cấu hình tham số và theo dõi nhật ký hoạt động
+          </p>
+        </div>
+
+        <!-- Configs Table -->
+        <div class="table-container">
+          <div class="table-header-bar">
+            <h2 class="table-title">Cấu Hình Ứng Dụng (system_configs)</h2>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Tham Số (Key)</th>
+                <th>Giá Trị (Value)</th>
+                <th>Mô Tả</th>
+              </tr>
+            </thead>
+            <tbody id="configs-table">
+              <tr>
+                <td
+                  colspan="3"
+                  style="
+                    text-align: center;
+                    color: var(--text-muted);
+                    padding: 16px;
+                  "
+                >
+                  Đang nạp cấu hình...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Logs Table -->
+        <div class="table-container">
+          <div class="table-header-bar">
+            <h2 class="table-title">Nhật Ký Lỗi & Hoạt Động (system_logs)</h2>
+            <button onclick="fetchSystemData()" class="btn btn-sm btn-outline">
+              Làm mới
+            </button>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Thời Gian</th>
+                <th>Cấp Độ</th>
+                <th>Hành Động</th>
+                <th>Chi Tiết</th>
+              </tr>
+            </thead>
+            <tbody id="logs-table">
+              <tr>
+                <td
+                  colspan="4"
+                  style="
+                    text-align: center;
+                    color: var(--text-muted);
+                    padding: 16px;
+                  "
+                >
+                  Đang nạp nhật ký...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      // 1. Tải danh sách cấu hình hệ thống
+      async function loadConfigs() {
+        const configTbody =
+          document.getElementById("configsTableBody") ||
+          document.querySelector("#configsTable tbody");
+        if (!configTbody) return;
+
+        try {
+          const res = await fetch("/api/admin/configs");
+          if (!res.ok) throw new Error("Không thể tải cấu hình");
+          const configs = await res.json();
+
+          if (!configs || configs.length === 0) {
+            configTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#6B7280;">Không có cấu hình nào.</td></tr>`;
+            return;
+          }
+
+          configTbody.innerHTML = configs
+            .map(
+              (item) => `
+        <tr style="border-bottom: 1px solid #E5E7EB;">
+          <td style="padding: 12px; font-weight: 600; color: #374151;">${item.config_key}</td>
+          <td style="padding: 12px;">
+            <input type="text" id="cfg_${item.config_key}" value="${item.config_value}" 
+                   style="border: 1px solid #D1D5DB; padding: 6px 10px; border-radius: 6px; width: 100%; max-width: 250px;" />
+          </td>
+          <td style="padding: 12px; color: #6B7280; font-size: 13px;">${item.description || "---"}</td>
+          <td style="padding: 12px;">
+            <button onclick="updateConfig('${item.config_key}')" 
+                    style="background: #2563EB; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+              Lưu
+            </button>
+          </td>
+        </tr>
+      `,
+            )
+            .join("");
+        } catch (err) {
+          console.error(err);
+          configTbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#EF4444; padding:15px;">Lỗi tải dữ liệu cấu hình!</td></tr>`;
+        }
+      }
+
+      // 2. Cập nhật một cấu hình
+      async function updateConfig(key) {
+        const input = document.getElementById(`cfg_${key}`);
+        if (!input) return;
+
+        try {
+          const res = await fetch(`/api/admin/configs/${key}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: input.value.trim() }),
+          });
+
+          if (res.ok) {
+            alert(`Đã lưu cấu hình ${key} thành công!`);
+          } else {
+            alert("Lưu cấu hình thất bại!");
+          }
+        } catch (err) {
+          alert("Lỗi kết nối khi lưu cấu hình!");
+        }
+      }
+
+      // 3. Tải nhật ký hệ thống (Logs)
+      async function loadLogs() {
+        const logTbody =
+          document.getElementById("logsTableBody") ||
+          document.querySelector("#logsTable tbody");
+        if (!logTbody) return;
+
+        try {
+          const res = await fetch("/api/admin/logs");
+          if (!res.ok) throw new Error("Không thể tải nhật ký");
+          const logs = await res.json();
+
+          if (!logs || logs.length === 0) {
+            logTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:15px; color:#6B7280;">Chưa có nhật ký nào ghi nhận.</td></tr>`;
+            return;
+          }
+
+          logTbody.innerHTML = logs
+            .map((log) => {
+              let badgeColor = "#10B981"; // INFO
+              let badgeBg = "#ECFDF5";
+              if (log.level === "WARN") {
+                badgeColor = "#F59E0B";
+                badgeBg = "#FEF3C7";
+              } else if (log.level === "ERROR") {
+                badgeColor = "#EF4444";
+                badgeBg = "#FEE2E2";
+              }
+
+              const dateStr = log.created_at
+                ? new Date(log.created_at).toLocaleString("vi-VN")
+                : "---";
+
+              return `
+          <tr style="border-bottom: 1px solid #E5E7EB; font-size: 13px;">
+            <td style="padding: 10px 12px; color: #6B7280;">#${log.id}</td>
+            <td style="padding: 10px 12px; font-weight: 600; color: #111827;">${log.action}</td>
+            <td style="padding: 10px 12px;">
+              <span style="background: ${badgeBg}; color: ${badgeColor}; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">
+                ${log.level}
+              </span>
+            </td>
+            <td style="padding: 10px 12px; color: #374151;">${log.details || ""}</td>
+            <td style="padding: 10px 12px; color: #6B7280;">${dateStr}</td>
+          </tr>
+        `;
+            })
+            .join("");
+        } catch (err) {
+          console.error(err);
+          logTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#EF4444; padding:15px;">Lỗi tải nhật ký hệ thống!</td></tr>`;
+        }
+      }
+
+      // Tự động nạp dữ liệu khi tải trang
+      document.addEventListener("DOMContentLoaded", () => {
+        loadConfigs();
+        loadLogs();
+      });
+    </script>
+  </body>
+</html>
