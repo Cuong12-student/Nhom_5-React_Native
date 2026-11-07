@@ -1,6 +1,5 @@
 import { API_BASE_URL } from "../constants/api";
 
-// Bộ nhớ đệm thay thế AsyncStorage không cần native build
 const memoryStore: Record<string, string> = {};
 
 const AsyncStorage = {
@@ -19,7 +18,7 @@ const AsyncStorage = {
 
 const TX_STORAGE_KEY = "@app_transactions";
 const CAT_STORAGE_KEY = "@app_categories";
-const USERS_STORAGE_KEY = "@app_users";
+const USER_STORAGE_KEY = "@app_current_user";
 
 /* ===================================================
    1. ĐỊNH NGHĨA KIỂU DỮ LIỆU (TYPES)
@@ -27,31 +26,31 @@ const USERS_STORAGE_KEY = "@app_users";
 
 export interface Transaction {
   id: number | string;
-  user_id?: number;
+  customer_id?: number;
   wallet_id?: number;
   category_id?: number;
   title: string;
   amount: number;
-  type: "income" | "expense";
+  type: "expense" | "income"; // Giữ tương thích giao diện (mặc định expense)
   category?: string;
   category_icon?: string;
   category_color?: string;
-  date: string; // ISO date string e.g. "2026-11-01"
+  date: string;
   note?: string;
 }
 
 export interface Category {
   id: number | string;
-  user_id?: number;
+  customer_id?: number | null;
   name: string;
-  type: "income" | "expense";
   icon?: string;
   color?: string;
+  type?: "expense" | "income";
 }
 
 export interface Wallet {
   id: number | string;
-  user_id?: number;
+  customer_id?: number;
   name: string;
   balance: number;
 }
@@ -60,75 +59,50 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  password?: string;
+  initial_balance?: number;
   walletBalance: number;
   monthlySpendLimit: number;
 }
 
+let memoryTransactions: Transaction[] = [];
+
 /* ===================================================
-   2. DỮ LIỆU MẶC ĐỊNH & KHỞI TẠO
+   2. AUTHENTICATION (KẾT NỐI API BACKEND)
 =================================================== */
 
-const initialUsers: User[] = [
-  {
-    id: 1,
-    name: "Người dùng test",
-    email: "test@gmail.com",
-    password: "123",
-    walletBalance: 2_000_000,
+export async function loginUser(
+  email: string,
+  password: string,
+): Promise<User> {
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!trimmedEmail) throw new Error("Vui lòng nhập email!");
+  if (!password) throw new Error("Vui lòng nhập mật khẩu!");
+
+  const response = await fetch(`${API_BASE_URL}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: trimmedEmail, password }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Đăng nhập thất bại!");
+  }
+
+  const customer = data.customer;
+  const user: User = {
+    id: customer.id,
+    name: customer.name,
+    email: customer.email,
+    initial_balance: Number(customer.initial_balance) || 0,
+    walletBalance: Number(customer.initial_balance) || 0,
     monthlySpendLimit: 5_000_000,
-  },
-];
+  };
 
-const initialTransactions: Transaction[] = [
-  {
-    id: "1",
-    title: "Cà phê sáng",
-    amount: 45_000,
-    type: "expense",
-    category: "food",
-    date: "2026-11-01",
-  },
-  {
-    id: "2",
-    title: "Grab về nhà",
-    amount: 62_000,
-    type: "expense",
-    category: "travel",
-    date: "2026-11-02",
-  },
-  {
-    id: "3",
-    title: "Lương tháng 11",
-    amount: 15_000_000,
-    type: "income",
-    category: "other",
-    date: "2026-11-01",
-  },
-  {
-    id: "4",
-    title: "Tiền điện",
-    amount: 425_000,
-    type: "expense",
-    category: "living",
-    date: "2026-11-03",
-  },
-  {
-    id: "5",
-    title: "Mua sách mới",
-    amount: 189_000,
-    type: "expense",
-    category: "shopping",
-    date: "2026-11-04",
-  },
-];
-
-const memoryUsers: User[] = [...initialUsers];
-let memoryTransactions: Transaction[] = [...initialTransactions];
-
-/* ===================================================
-   3. AUTHENTICATION (ĐĂNG KÝ / ĐĂNG NHẬP)
-=================================================== */
+  await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  return user;
+}
 
 export async function registerUser(
   name: string,
@@ -144,54 +118,29 @@ export async function registerUser(
     throw new Error("Mật khẩu phải có ít nhất 3 ký tự!");
   }
 
-  const existing = memoryUsers.find(
-    (u) => u.email.toLowerCase() === trimmedEmail,
-  );
-  if (existing) throw new Error("Email đã được đăng ký!");
-
+  // Tạm thời tự động tạo trên bộ nhớ, sẵn sàng nối endpoint /api/register khi thêm vào server
   const newUser: User = {
     id: Date.now(),
     name: trimmedName,
     email: trimmedEmail,
-    password,
     walletBalance: 0,
     monthlySpendLimit: 5_000_000,
   };
 
-  memoryUsers.push(newUser);
-  await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(memoryUsers));
+  await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
   return newUser;
 }
 
-export async function loginUser(
-  email: string,
-  password: string,
-): Promise<User> {
-  const trimmedEmail = email.trim().toLowerCase();
-  if (!trimmedEmail) throw new Error("Vui lòng nhập email!");
-  if (!password) throw new Error("Vui lòng nhập mật khẩu!");
-
-  const user = memoryUsers.find(
-    (u) =>
-      u.email.toLowerCase() === trimmedEmail && u.password === password,
-  );
-  if (!user) throw new Error("Email hoặc mật khẩu không chính xác!");
-  return user;
-}
-
 /* ===================================================
-   4. QUẢN LÝ VÍ & NẠP TIỀN
+   3. QUẢN LÝ VÍ & SỐ DƯ
 =================================================== */
 
-export async function getWalletBalance(userId?: number): Promise<number> {
-  if (userId) {
-    const user = memoryUsers.find((u) => u.id === userId);
-    if (user) return user.walletBalance;
-  }
-
-  // Thử kết nối API server nếu có
+export async function getWalletBalance(customerId?: number): Promise<number> {
+  if (!customerId) return 0;
   try {
-    const res = await fetch(`${API_BASE_URL}/wallets`);
+    const res = await fetch(
+      `${API_BASE_URL}/wallets?customer_id=${customerId}`,
+    );
     if (res.ok) {
       const wallets = await res.json();
       if (Array.isArray(wallets) && wallets.length > 0) {
@@ -199,39 +148,29 @@ export async function getWalletBalance(userId?: number): Promise<number> {
       }
     }
   } catch {
-    // Dự phòng offline
+    // Fallback offline
   }
-
-  const txList = await getTransactions();
-  return txList.reduce((total, item) => {
-    return item.type === "income" ? total + item.amount : total - item.amount;
-  }, 0);
+  return 0;
 }
 
 export async function depositToWallet(
-  userId: number,
+  customerId: number,
   amount: number,
 ): Promise<number> {
   const safeAmount = Number(amount);
   if (Number.isNaN(safeAmount) || safeAmount <= 0) {
     throw new Error("Số tiền nạp phải lớn hơn 0!");
   }
-
-  const user = memoryUsers.find((u) => u.id === userId);
-  if (!user) throw new Error("Không tìm thấy tài khoản!");
-
-  user.walletBalance += safeAmount;
-  await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(memoryUsers));
-  return user.walletBalance;
+  return safeAmount;
 }
 
 /* ===================================================
-   5. QUẢN LÝ GIỚI HẠN CHI TIÊU (MONTHLY SPEND LIMIT)
+   4. QUẢN LÝ GIỚI HẠN CHI TIÊU (SPEND LIMIT)
 =================================================== */
 
 export async function getSpendLimit(userId: number): Promise<number> {
-  const user = memoryUsers.find((u) => u.id === userId);
-  return user?.monthlySpendLimit ?? 5_000_000;
+  const saved = await AsyncStorage.getItem(`@limit_${userId}`);
+  return saved ? Number(saved) : 5_000_000;
 }
 
 export async function setSpendLimit(
@@ -239,39 +178,37 @@ export async function setSpendLimit(
   limit: number,
 ): Promise<number> {
   const safeLimit = Number(limit);
-  if (Number.isNaN(safeLimit) || safeLimit <= 0) {
-    throw new Error("Hạn mức chi tiêu không hợp lệ!");
-  }
-
-  const user = memoryUsers.find((u) => u.id === userId);
-  if (!user) throw new Error("Không tìm thấy tài khoản!");
-
-  user.monthlySpendLimit = safeLimit;
-  await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(memoryUsers));
-  return user.monthlySpendLimit;
+  await AsyncStorage.setItem(`@limit_${userId}`, String(safeLimit));
+  return safeLimit;
 }
 
 /* ===================================================
-   6. QUẢN LÝ GIAO DỊCH (TRANSACTIONS)
+   5. QUẢN LÝ GIAO DỊCH CHI TIÊU (TRANSACTIONS)
 =================================================== */
 
-export const getTransactions = async (): Promise<Transaction[]> => {
+export const getTransactions = async (
+  customerId?: number,
+): Promise<Transaction[]> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/transactions`);
+    const url = customerId
+      ? `${API_BASE_URL}/transactions?customer_id=${customerId}`
+      : `${API_BASE_URL}/transactions`;
+
+    const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
         const formatted: Transaction[] = data.map((item: any) => ({
           id: item.id,
-          user_id: item.user_id,
+          customer_id: item.customer_id,
           wallet_id: item.wallet_id,
           category_id: item.category_id,
           title: item.title || "",
           amount: Number(item.amount) || 0,
-          type: item.type === "income" ? "income" : "expense",
+          type: "expense", // Hệ thống mới chuyên quản lý chi tiêu
           category: item.category_name || item.category || "other",
           category_icon: item.category_icon || "tag",
-          category_color: item.category_color || "#3B82F6",
+          category_color: item.category_color || "#EF4444",
           date: item.date
             ? String(item.date).slice(0, 10)
             : new Date().toISOString().slice(0, 10),
@@ -284,7 +221,7 @@ export const getTransactions = async (): Promise<Transaction[]> => {
       }
     }
   } catch {
-    // Offline fallback
+    // Fallback offline
   }
 
   const localData = await AsyncStorage.getItem(TX_STORAGE_KEY);
@@ -295,9 +232,7 @@ export const getTransactions = async (): Promise<Transaction[]> => {
         memoryTransactions = parsed;
         return memoryTransactions;
       }
-    } catch {
-      // Ignored
-    }
+    } catch {}
   }
 
   return [...memoryTransactions];
@@ -305,53 +240,47 @@ export const getTransactions = async (): Promise<Transaction[]> => {
 
 export const addTransaction = async (
   newTx: Omit<Transaction, "id">,
-  userId?: number,
+  customerId?: number,
 ): Promise<Transaction> => {
   const safeAmount = Number(newTx.amount) || 0;
+
+  // Lấy category_id tương ứng hoặc mặc định là 1 (Ăn uống)
+  const categoryId =
+    typeof newTx.category_id === "number" ? newTx.category_id : 1;
+
+  const payload = {
+    customer_id: customerId || 1,
+    wallet_id: 1, // Ví chính mặc định
+    category_id: categoryId,
+    title: newTx.title,
+    amount: safeAmount,
+    date: newTx.date.includes(" ") ? newTx.date : `${newTx.date} 00:00:00`,
+    note: newTx.note || "",
+  };
+
+  const response = await fetch(`${API_BASE_URL}/transactions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || data.message || "Lỗi tạo khoản chi tiêu");
+  }
+
   const itemToAdd: Transaction = {
     ...newTx,
+    id: data.insertId || Date.now().toString(),
     amount: safeAmount,
-    id: Date.now().toString(),
+    type: "expense",
   };
 
   memoryTransactions = [itemToAdd, ...memoryTransactions];
-
-  // Trừ/cộng số dư ví của user nếu có
-  if (userId) {
-    const user = memoryUsers.find((u) => u.id === userId);
-    if (user) {
-      if (newTx.type === "expense") {
-        user.walletBalance -= safeAmount; // Có thể âm nếu chi vượt số dư
-      } else if (newTx.type === "income") {
-        user.walletBalance += safeAmount;
-      }
-      await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(memoryUsers));
-    }
-  }
-
-  await AsyncStorage.setItem(TX_STORAGE_KEY, JSON.stringify(memoryTransactions));
-
-  // Gửi API ngầm (nếu có server backend)
-  try {
-    const payload = {
-      user_id: userId || 1,
-      wallet_id: 1,
-      category_id: 1,
-      title: newTx.title,
-      amount: safeAmount,
-      type: newTx.type,
-      date: newTx.date.includes(" ") ? newTx.date : `${newTx.date} 00:00:00`,
-      note: newTx.note || "",
-    };
-    await fetch(`${API_BASE_URL}/transactions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-  } catch {
-    // Không gián đoạn app khi offline
-  }
-
+  await AsyncStorage.setItem(
+    TX_STORAGE_KEY,
+    JSON.stringify(memoryTransactions),
+  );
   return itemToAdd;
 };
 
@@ -359,43 +288,51 @@ export const updateTransaction = async (tx: Transaction): Promise<void> => {
   memoryTransactions = memoryTransactions.map((item) =>
     String(item.id) === String(tx.id) ? tx : item,
   );
-  await AsyncStorage.setItem(TX_STORAGE_KEY, JSON.stringify(memoryTransactions));
+  await AsyncStorage.setItem(
+    TX_STORAGE_KEY,
+    JSON.stringify(memoryTransactions),
+  );
 
-  try {
-    await fetch(`${API_BASE_URL}/transactions/${tx.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(tx),
-    });
-  } catch {
-    // Ignore offline error
-  }
+  await fetch(`${API_BASE_URL}/transactions/${tx.id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: tx.title,
+      amount: tx.amount,
+      category_id: tx.category_id || 1,
+      date: tx.date,
+      note: tx.note || null,
+    }),
+  });
 };
 
-export const deleteTransaction = async (
-  id: number | string,
-): Promise<void> => {
+export const deleteTransaction = async (id: number | string): Promise<void> => {
   memoryTransactions = memoryTransactions.filter(
     (item) => String(item.id) !== String(id),
   );
-  await AsyncStorage.setItem(TX_STORAGE_KEY, JSON.stringify(memoryTransactions));
+  await AsyncStorage.setItem(
+    TX_STORAGE_KEY,
+    JSON.stringify(memoryTransactions),
+  );
 
-  try {
-    await fetch(`${API_BASE_URL}/transactions/${id}`, {
-      method: "DELETE",
-    });
-  } catch {
-    // Ignore offline error
-  }
+  await fetch(`${API_BASE_URL}/transactions/${id}`, {
+    method: "DELETE",
+  });
 };
 
 /* ===================================================
-   7. QUẢN LÝ DANH MỤC (CATEGORIES)
+   6. QUẢN LÝ DANH MỤC (CATEGORIES)
 =================================================== */
 
-export const getCategories = async (): Promise<Category[]> => {
+export const getCategories = async (
+  customerId?: number,
+): Promise<Category[]> => {
   try {
-    const res = await fetch(`${API_BASE_URL}/categories`);
+    const url = customerId
+      ? `${API_BASE_URL}/categories?customer_id=${customerId}`
+      : `${API_BASE_URL}/categories`;
+
+    const res = await fetch(url);
     if (res.ok) {
       const data: Category[] = await res.json();
       if (Array.isArray(data)) {
@@ -403,87 +340,38 @@ export const getCategories = async (): Promise<Category[]> => {
         return data;
       }
     }
-  } catch {
-    // Fallback local
-  }
-
-  const localData = await AsyncStorage.getItem(CAT_STORAGE_KEY);
-  if (localData) {
-    try {
-      return JSON.parse(localData);
-    } catch {
-      // Ignored
-    }
-  }
+  } catch {}
 
   return [
-    { id: 1, name: "Ăn uống", type: "expense", icon: "fast-food", color: "#EF4444" },
-    { id: 2, name: "Di chuyển", type: "expense", icon: "car", color: "#F59E0B" },
-    { id: 3, name: "Lương", type: "income", icon: "cash", color: "#10B981" },
-    { id: 4, name: "Thưởng", type: "income", icon: "gift", color: "#3B82F6" },
+    { id: 1, name: "Ăn uống", icon: "fast-food", color: "#EF4444" },
+    { id: 2, name: "Đi lại", icon: "car", color: "#F59E0B" },
+    { id: 3, name: "Mua sắm", icon: "cart", color: "#8B5CF6" },
+    { id: 4, name: "Hóa đơn & Điện nước", icon: "receipt", color: "#3B82F6" },
   ];
 };
 
 export const addCategory = async (
   newCat: Omit<Category, "id">,
 ): Promise<Category> => {
-  const createdCategory: Category = { ...newCat, id: Date.now() };
-  const currentList = await getCategories();
-  await AsyncStorage.setItem(
-    CAT_STORAGE_KEY,
-    JSON.stringify([...currentList, createdCategory]),
-  );
-
-  try {
-    await fetch(`${API_BASE_URL}/categories`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newCat),
-    });
-  } catch {
-    // Ignored
-  }
-
-  return createdCategory;
-};
-
-export const updateCategory = async (cat: Category): Promise<void> => {
-  const list = await getCategories();
-  const updated = list.map((item) =>
-    String(item.id) === String(cat.id) ? cat : item,
-  );
-  await AsyncStorage.setItem(CAT_STORAGE_KEY, JSON.stringify(updated));
-
-  try {
-    await fetch(`${API_BASE_URL}/categories/${cat.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cat),
-    });
-  } catch {
-    // Ignored
-  }
+  const res = await fetch(`${API_BASE_URL}/categories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(newCat),
+  });
+  const data = await res.json();
+  return { ...newCat, id: data.insertId || Date.now() };
 };
 
 export const deleteCategory = async (id: number | string): Promise<void> => {
-  const list = await getCategories();
-  const updated = list.filter((item) => String(item.id) !== String(id));
-  await AsyncStorage.setItem(CAT_STORAGE_KEY, JSON.stringify(updated));
-
-  try {
-    await fetch(`${API_BASE_URL}/categories/${id}`, {
-      method: "DELETE",
-    });
-  } catch {
-    // Ignored
-  }
+  await fetch(`${API_BASE_URL}/categories/${id}`, {
+    method: "DELETE",
+  });
 };
 
 /* ===================================================
-   8. THỐNG KÊ THU CHI & TÍNH TOÁN THEO THÁNG
+   7. THỐNG KÊ CHI TIÊU THEO THÁNG
 =================================================== */
 
-/** Lấy tất cả giao dịch trong 1 tháng cụ thể */
 export function getTransactionsByMonth(
   year: number,
   month: number,
@@ -495,28 +383,22 @@ export function getTransactionsByMonth(
   });
 }
 
-/** Tổng chi trong tháng */
 export function getMonthlyExpense(year: number, month: number): number {
-  return getTransactionsByMonth(year, month)
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  return getTransactionsByMonth(year, month).reduce(
+    (sum, t) => sum + (Number(t.amount) || 0),
+    0,
+  );
 }
 
-/** Tổng thu trong tháng */
 export function getMonthlyIncome(year: number, month: number): number {
-  return getTransactionsByMonth(year, month)
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  return 0; // Hệ thống chuyên biệt quản lý chi tiêu
 }
 
-/** Chi tiêu theo từng danh mục trong tháng */
 export function getExpenseByCategory(
   year: number,
   month: number,
 ): { category: string; amount: number; fraction: number }[] {
-  const monthTx = getTransactionsByMonth(year, month).filter(
-    (t) => t.type === "expense",
-  );
+  const monthTx = getTransactionsByMonth(year, month);
   const totalExpense = monthTx.reduce(
     (sum, t) => sum + (Number(t.amount) || 0),
     0,
@@ -538,7 +420,6 @@ export function getExpenseByCategory(
     .sort((a, b) => b.amount - a.amount);
 }
 
-/** Tổng chi 6 tháng gần nhất */
 export function getLast6MonthsExpense(now = new Date()): {
   label: string;
   amount: number;
@@ -561,14 +442,12 @@ export function getLast6MonthsExpense(now = new Date()): {
   return result;
 }
 
-/** Số tiền còn lại trong hạn mức = limit - totalExpense (có thể âm nếu vượt) */
 export function getRemainingBudget(
   userId: number,
   year: number,
   month: number,
 ): { limit: number; spent: number; remaining: number } {
-  const user = memoryUsers.find((u) => u.id === userId);
-  const limit = user?.monthlySpendLimit ?? 5_000_000;
   const spent = getMonthlyExpense(year, month);
+  const limit = 5_000_000;
   return { limit, spent, remaining: limit - spent };
 }

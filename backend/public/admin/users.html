@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Quản Lý Người Dùng</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="admin-layout">
+      <!-- Sidebar -->
+      <aside class="admin-sidebar">
+        <div class="brand">FINANCE ADMIN</div>
+        <nav class="admin-nav">
+          <a href="index.html">Trang Chủ</a>
+          <a href="users.html" class="active">Quản Lý Người Dùng</a>
+          <a href="system.html">Quản Lý Hệ Thống</a>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="status-dot"></span> Server: Cổng 5000
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="admin-content">
+        <div class="page-header">
+          <h1 class="page-title">Quản Lý Người Dùng</h1>
+          <p class="page-subtitle">
+            Danh sách tài khoản và phân quyền người dùng
+          </p>
+        </div>
+
+        <div class="table-container">
+          <div class="table-header-bar">
+            <h2 class="table-title">Danh Sách Tài Khoản</h2>
+            <button onclick="fetchUsers()" class="btn btn-sm btn-outline">
+              Làm mới
+            </button>
+          </div>
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Họ Tên</th>
+                <th>Email</th>
+                <th>Vai Trò</th>
+                <th>Trạng Thái</th>
+                <th style="text-align: right">Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody id="users-table">
+              <tr>
+                <td
+                  colspan="6"
+                  style="
+                    text-align: center;
+                    color: var(--text-muted);
+                    padding: 24px;
+                  "
+                >
+                  Đang tải dữ liệu...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      async function loadUsers() {
+        const tbody =
+          document.getElementById("usersTableBody") ||
+          document.querySelector("tbody");
+        if (!tbody) return;
+
+        try {
+          const res = await fetch("/api/admin/users");
+          if (!res.ok) throw new Error("Không thể tải danh sách tài khoản");
+
+          const users = await res.json();
+
+          if (users.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px;">Chưa có tài khoản nào.</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = users
+            .map((user) => {
+              const isBlocked = user.status === "blocked";
+              const statusBadge = isBlocked
+                ? `<span style="background: #FEE2E2; color: #DC2626; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;">Đã khóa</span>`
+                : `<span style="background: #ECFDF5; color: #16A34A; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;">Hoạt động</span>`;
+
+              const actionBtn = isBlocked
+                ? `<button onclick="toggleUserStatus(${user.id}, 'active')" style="background: #10B981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">Mở khóa</button>`
+                : `<button onclick="toggleUserStatus(${user.id}, 'blocked')" style="background: #EF4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">Khóa tài khoản</button>`;
+
+              return `
+          <tr style="border-bottom: 1px solid #E5E7EB; text-align: left;">
+            <td style="padding: 12px;">#${user.id}</td>
+            <td style="padding: 12px; font-weight: 600;">${user.name}</td>
+            <td style="padding: 12px;">${user.email}</td>
+            <td style="padding: 12px;"><span style="background: #E0E7FF; color: #4338CA; padding: 3px 8px; border-radius: 4px; font-size: 12px;">Khách hàng</span></td>
+            <td style="padding: 12px;">${statusBadge}</td>
+            <td style="padding: 12px;">${actionBtn}</td>
+          </tr>
+        `;
+            })
+            .join("");
+        } catch (err) {
+          console.error(err);
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: red; padding: 20px;">Lỗi kết nối tới máy chủ!</td></tr>`;
+        }
+      }
+
+      // Hàm khóa / mở khóa tài khoản
+      async function toggleUserStatus(id, newStatus) {
+        if (
+          !confirm(
+            `Bạn có chắc muốn ${newStatus === "blocked" ? "khóa" : "mở khóa"} tài khoản này?`,
+          )
+        )
+          return;
+
+        try {
+          const res = await fetch(`/api/admin/users/${id}/status`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus }),
+          });
+
+          if (res.ok) {
+            loadUsers(); // Tải lại bảng sau khi đổi
+          } else {
+            alert("Thao tác thất bại!");
+          }
+        } catch (err) {
+          alert("Lỗi kết nối máy chủ!");
+        }
+      }
+
+      // Tự động gọi khi tải xong trang web
+      document.addEventListener("DOMContentLoaded", loadUsers);
+    </script>
+  </body>
+</html>
