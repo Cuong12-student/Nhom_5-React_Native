@@ -9,22 +9,34 @@ export default function DepositScreen({
   onSave,
 }: {
   onBack?: () => void;
-  onSave?: (amount: number) => void;
+  onSave?: (amount: number) => Promise<any> | void;
 }) {
   const { t } = useLanguage();
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const quickAmounts = [
+    100_000, 200_000, 500_000, 1_000_000, 2_000_000, 5_000_000,
+  ];
 
-  const quickAmounts = [100_000, 200_000, 500_000, 1_000_000, 2_000_000, 5_000_000];
-
-  function handleDeposit() {
+  async function handleDeposit() {
     const numAmount = Number(amount.replace(/\D/g, ""));
     if (!numAmount || numAmount <= 0) {
       setError("Vui lòng nhập số tiền hợp lệ!");
       return;
     }
     setError("");
-    if (onSave) onSave(numAmount);
+    if (onSave) {
+      try {
+        setLoading(true);
+        // Gọi hàm từ App.tsx và chờ lưu DB + cập nhật xong
+        await onSave(numAmount);
+      } catch (err: any) {
+        Alert.alert("Lỗi", err.message || "Không thể thực hiện nạp tiền!");
+      } finally {
+        setLoading(false);
+      }
+    }
   }
 
   return (
@@ -112,9 +124,17 @@ export default function DepositScreen({
           {t("deposit.method")}
         </Txt>
         {[
-          { icon: "🏦", name: t("deposit.bank_transfer"), desc: "Chuyển khoản ngân hàng" },
+          {
+            icon: "🏦",
+            name: t("deposit.bank_transfer"),
+            desc: "Chuyển khoản ngân hàng",
+          },
           { icon: "💳", name: t("deposit.card"), desc: "Visa / Mastercard" },
-          { icon: "📱", name: t("deposit.e_wallet"), desc: "MoMo, ZaloPay, VNPay" },
+          {
+            icon: "📱",
+            name: t("deposit.e_wallet"),
+            desc: "MoMo, ZaloPay, VNPay",
+          },
         ].map((method, idx) => (
           <View
             key={idx}
@@ -146,7 +166,9 @@ export default function DepositScreen({
                   borderRadius: 6,
                 }}
               >
-                <Txt style={{ fontSize: 10, color: "#16A34A", fontWeight: "700" }}>
+                <Txt
+                  style={{ fontSize: 10, color: "#16A34A", fontWeight: "700" }}
+                >
                   Mặc định
                 </Txt>
               </View>
@@ -156,8 +178,9 @@ export default function DepositScreen({
       </View>
 
       <Button
-        title={t("deposit.confirm")}
-        icon="checkmark"
+        title={loading ? "Đang xử lý..." : t("deposit.confirm")}
+        icon={loading ? undefined : "checkmark"}
+        disabled={loading}
         onPress={handleDeposit}
       />
     </Screen>

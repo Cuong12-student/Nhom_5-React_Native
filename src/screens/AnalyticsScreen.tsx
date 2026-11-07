@@ -21,6 +21,7 @@ import {
   getExpenseByCategory,
   getLast6MonthsExpense,
   getRemainingBudget,
+  getTransactions,
 } from "../utils/storage";
 
 export default function AnalyticsScreen({
@@ -42,14 +43,20 @@ export default function AnalyticsScreen({
     remaining: 5_000_000,
   });
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
+    // 1. Tải và đồng bộ danh sách giao dịch của riêng user này
+    if (userId) {
+      await getTransactions(userId);
+    }
+
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
 
-    const expense = getMonthlyExpense(year, month);
-    const income = getMonthlyIncome(year, month);
-    const breakdown = getExpenseByCategory(year, month);
-    const trend = getLast6MonthsExpense(viewDate);
+    // 2. Truyền userId vào các hàm thống kê để chỉ tính riêng cho user này
+    const expense = getMonthlyExpense(year, month, userId);
+    const income = getMonthlyIncome(year, month, userId);
+    const breakdown = getExpenseByCategory(year, month, userId);
+    const trend = getLast6MonthsExpense(viewDate, userId);
 
     setTotalExpense(expense);
     setTotalIncome(income);
@@ -123,19 +130,11 @@ export default function AnalyticsScreen({
           },
         ]}
       >
-        <IconButton
-          icon="chevron-back"
-          label="Trước"
-          onPress={goPrevMonth}
-        />
+        <IconButton icon="chevron-back" label="Trước" onPress={goPrevMonth} />
         <Txt weight="bold" style={{ fontSize: 14 }}>
           {monthLabel}
         </Txt>
-        <IconButton
-          icon="chevron-forward"
-          label="Sau"
-          onPress={goNextMonth}
-        />
+        <IconButton icon="chevron-forward" label="Sau" onPress={goNextMonth} />
       </View>
 
       {/* ─── Tổng quan Thu Chi ─── */}
@@ -157,7 +156,10 @@ export default function AnalyticsScreen({
           <Txt style={{ fontSize: 11, color: "#6B7280" }}>
             {t("analytics.total_income")}
           </Txt>
-          <Txt weight="extra" style={{ fontSize: 16, color: "#16A34A", marginTop: 4 }}>
+          <Txt
+            weight="extra"
+            style={{ fontSize: 16, color: "#16A34A", marginTop: 4 }}
+          >
             +{totalIncome.toLocaleString()} ₫
           </Txt>
         </View>
@@ -172,7 +174,10 @@ export default function AnalyticsScreen({
           <Txt style={{ fontSize: 11, color: "#6B7280" }}>
             {t("analytics.total_spent")}
           </Txt>
-          <Txt weight="extra" style={{ fontSize: 16, color: "#DC2626", marginTop: 4 }}>
+          <Txt
+            weight="extra"
+            style={{ fontSize: 16, color: "#DC2626", marginTop: 4 }}
+          >
             -{totalExpense.toLocaleString()} ₫
           </Txt>
         </View>
@@ -188,7 +193,9 @@ export default function AnalyticsScreen({
           borderColor: isOverBudget ? "#FECACA" : "#BBF7D0",
         }}
       >
-        <View style={[s.row, { justifyContent: "space-between", marginBottom: 10 }]}>
+        <View
+          style={[s.row, { justifyContent: "space-between", marginBottom: 10 }]}
+        >
           <Txt weight="bold" style={{ fontSize: 13 }}>
             🎯 {t("analytics.budget_title")}
           </Txt>
@@ -199,7 +206,9 @@ export default function AnalyticsScreen({
               color: isOverBudget ? "#DC2626" : "#16A34A",
             }}
           >
-            {isOverBudget ? t("analytics.over_budget") : t("analytics.within_budget")}
+            {isOverBudget
+              ? t("analytics.over_budget")
+              : t("analytics.within_budget")}
           </Txt>
         </View>
 
@@ -458,9 +467,7 @@ export default function AnalyticsScreen({
                   textAlign: "center",
                 }}
               >
-                {m.amount > 0
-                  ? `${(m.amount / 1_000_000).toFixed(1)}tr`
-                  : "0"}
+                {m.amount > 0 ? `${(m.amount / 1_000_000).toFixed(1)}tr` : "0"}
               </Txt>
               <Txt
                 numberOfLines={2}

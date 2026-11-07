@@ -107,9 +107,23 @@ export default function App() {
   // ─── Xử lý nạp tiền ───────────────────────────
   const handleDeposit = async (amount: number) => {
     if (currentUser) {
-      await depositToWallet(currentUser.id, amount);
-      triggerRefresh();
-      goBack();
+      try {
+        // 1. Nhận số dư mới nhất từ API backend
+        const newBalance = await depositToWallet(currentUser.id, amount);
+
+        // 2. Cập nhật lại state currentUser với số dư mới
+        setCurrentUser((prev) =>
+          prev ? { ...prev, walletBalance: newBalance } : prev,
+        );
+
+        // 3. Trigger làm mới dữ liệu
+        triggerRefresh();
+
+        // 4. Quay lại HomeScreen
+        goBack();
+      } catch (err) {
+        console.error("Lỗi khi nạp tiền trong App.tsx:", err);
+      }
     }
   };
 
@@ -238,6 +252,8 @@ export default function App() {
             onResetToOnboarding={() => pushScreen("onboarding")}
             onLogout={handleLogout}
             userId={currentUser?.id || 0}
+            userName={currentUser?.name}
+            userEmail={currentUser?.email}
             onSetSpendLimit={handleSetSpendLimit}
           />
         );

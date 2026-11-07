@@ -1,6 +1,15 @@
 import React, { useState } from "react";
 import { View } from "react-native";
-import { Button, Field, Header, Icon, Screen, Tap, Txt, s } from "../components/ui";
+import {
+  Button,
+  Field,
+  Header,
+  Icon,
+  Screen,
+  Tap,
+  Txt,
+  s,
+} from "../components/ui";
 import { C } from "../constants/colors";
 import { useLanguage } from "../contexts/languageContext";
 import { getSpendLimit } from "../utils/storage";
@@ -25,12 +34,16 @@ export default function SettingsScreen({
   onResetToOnboarding,
   onLogout,
   userId,
+  userName,
+  userEmail,
   onSetSpendLimit,
 }: {
   onBack?: () => void;
   onResetToOnboarding?: () => void;
   onLogout?: () => void;
   userId?: number;
+  userName?: string;
+  userEmail?: string;
   onSetSpendLimit?: (limit: number) => void;
 }) {
   const { language, setLanguage, t } = useLanguage();
@@ -158,20 +171,64 @@ export default function SettingsScreen({
         />
       )}
 
-      {/* ─── Team ─── */}
-      <View style={[s.card, { gap: 10 }]}>
-        <Txt weight="bold">{t("settings.team")}</Txt>
-        {[
-          "Nguyễn Xuân Cường",
-          "Ngô Tuấn Hùng",
-          "Nguyễn An Nam",
-          "Nguyễn Đức Khiêm",
-          "Trần Gia Khánh",
-        ].map((name) => (
-          <Txt key={name} style={{ fontSize: 12, color: C.muted }}>
-            {name}
+      {/* THÔNG TIN TÀI KHOẢN */}
+      <View
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: 20,
+          padding: 18,
+          gap: 12,
+          marginTop: 10,
+          borderWidth: 1,
+          borderColor: "#E5E7EB",
+        }}
+      >
+        <Txt weight="bold" style={{ fontSize: 15, color: "#123F30" }}>
+          Thông tin tài khoản
+        </Txt>
+
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+          {/* Avatar chữ cái đầu */}
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: "#E8F5E9",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Txt weight="bold" style={{ fontSize: 20, color: "#2E7D32" }}>
+              {(userName || "U").charAt(0).toUpperCase()}
+            </Txt>
+          </View>
+
+          {/* Họ tên và Email */}
+          <View style={{ flex: 1, gap: 2 }}>
+            <Txt weight="bold" style={{ fontSize: 16, color: "#1F2937" }}>
+              {userName || "Người dùng"}
+            </Txt>
+            <Txt style={{ fontSize: 13, color: "#6B7280" }}>
+              {userEmail || "Chưa có email"}
+            </Txt>
+          </View>
+        </View>
+
+        {/* Dòng phân cách nhẹ */}
+        <View
+          style={{ height: 1, backgroundColor: "#F3F4F6", marginVertical: 4 }}
+        />
+
+        {/* ID tài khoản */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Txt style={{ fontSize: 13, color: "#6B7280" }}>
+            Mã khách hàng (ID):
           </Txt>
-        ))}
+          <Txt weight="semibold" style={{ fontSize: 13, color: "#111827" }}>
+            #{userId || "---"}
+          </Txt>
+        </View>
       </View>
     </Screen>
   );

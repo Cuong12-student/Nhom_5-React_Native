@@ -42,40 +42,122 @@ db.getConnection()
 // Đăng nhập cho App di động (Bảng customers, kiểm tra trạng thái khóa)
 app.post("/api/login", async (req, res) => {
   const { email, password } = req.body;
+
   try {
+    const trimmedEmail = email ? email.trim().toLowerCase() : "";
+
+    // Lấy thông tin khách hàng kèm ví từ MySQL
     const [rows] = await db.query(
-      "SELECT id, name, email, password, initial_balance, status FROM customers WHERE email = ?",
-      [email],
+      `SELECT c.id, c.name, c.email, c.password, c.status,
+              w.id AS wallet_id, COALESCE(w.balance, 0) AS wallet_balance
+       FROM customers c
+       LEFT JOIN wallets w ON c.id = w.customer_id
+       WHERE c.email = ?
+       LIMIT 1`,
+      [trimmedEmail],
     );
 
-    if (rows.length === 0 || rows[0].password !== password) {
+    if (rows.length === 0) {
       return res
         .status(401)
-        .json({ message: "Email hoặc mật khẩu không chính xác" });
+        .json({ error: "Email không tồn tại trong hệ thống!" });
     }
 
-    const customer = rows[0];
-    if (customer.status === "blocked") {
-      return res
-        .status(403)
-        .json({ message: "Tài khoản của bạn đã bị khóa bởi quản trị viên." });
+    const user = rows[0];
+
+    if (user.password !== password) {
+      return res.status(401).json({ error: "Mật khẩu không chính xác!" });
     }
 
+    if (user.status === "blocked") {
+      return res.status(403).json({ error: "Tài khoản của bạn đã bị khóa!" });
+    }
+
+    const userData = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      walletId: user.wallet_id || null,
+      walletBalance: Number(user.wallet_balance || 0),
+      monthlySpendLimit: 5000000,
+    };
+
+    // Trả về cả hai kiểu (user và trực tiếp) để app đọc kiểu nào cũng có 'id'
     res.json({
-      message: "Đăng nhập thành công",
-      customer: {
-        id: customer.id,
-        name: customer.name,
-        email: customer.email,
-        initial_balance: customer.initial_balance,
-      },
+      message: "Đăng nhập thành công!",
+      user: userData,
+      ...userData,
     });
   } catch (err) {
     console.error("Lỗi login customer:", err);
-    res.status(500).json({ message: "Lỗi server khi đăng nhập" });
+    res.status(500).json({ error: err.message });
   }
 });
+app.post("/api/register", async (req, res) => {
+  const { name, email, password } = req.body;
 
+  if (!email || !password) {
+    return res
+      .status(400)
+      .json({ error: "Vui lòng nhập đầy đủ email và mật khẩu!" });
+  }
+
+  const trimmedEmail = email.trim().toLowerCase();
+  const displayName = name ? name.trim() : trimmedEmail.split("@")[0];
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 1. Kiểm tra email đã tồn tại trong DB chưa
+    const [existing] = await conn.query(
+      "SELECT id FROM customers WHERE email = ? LIMIT 1",
+      [trimmedEmail],
+    );
+
+    if (existing.length > 0) {
+      await conn.rollback();
+      return res.status(400).json({ error: "Email này đã được sử dụng!" });
+    }
+
+    // 2. Thêm khách hàng vào bảng customers
+    const [custResult] = await conn.query(
+      "INSERT INTO customers (name, email, password, status) VALUES (?, ?, ?, 'active')",
+      [displayName, trimmedEmail, password],
+    );
+    const newCustomerId = custResult.insertId;
+
+    // 3. TẠO VÍ CHO KHÁCH HÀNG MỚI (Bỏ cột 'status' để không bị lỗi ER_BAD_FIELD_ERROR)
+    const [walletResult] = await conn.query(
+      "INSERT INTO wallets (customer_id, balance) VALUES (?, 0.00)",
+      [newCustomerId],
+    );
+
+    // 4. COMMIT BẮT BUỘC để MySQL lưu dữ liệu thực tế
+    await conn.commit();
+
+    const newUserData = {
+      id: newCustomerId,
+      name: displayName,
+      email: trimmedEmail,
+      walletId: walletResult.insertId,
+      walletBalance: 0,
+      monthlySpendLimit: 5000000,
+    };
+
+    return res.status(201).json({
+      message: "Đăng ký tài khoản thành công!",
+      user: newUserData,
+      ...newUserData,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error("Lỗi khi đăng ký:", err);
+    return res.status(500).json({ error: err.message || "Lỗi tạo tài khoản!" });
+  } finally {
+    conn.release();
+  }
+});
 // Đăng nhập cho Web Dashboard (Bảng admins)
 app.post("/api/admin/login", async (req, res) => {
   const { email, password } = req.body;
@@ -105,7 +187,7 @@ app.post("/api/admin/login", async (req, res) => {
    2. CÁC API DÀNH CHO GIAO DỊCH (TRANSACTIONS - CHỈ CHI TIÊU)
 =================================================== */
 
-// Lấy danh sách giao dịch chi tiêu (JOIN lấy thêm tên ví và icon danh mục)
+// 1. Lấy danh sách giao dịch chi tiêu
 app.get("/api/transactions", async (req, res) => {
   const { customer_id } = req.query;
   try {
@@ -114,8 +196,8 @@ app.get("/api/transactions", async (req, res) => {
               c.name AS category_name, c.icon AS category_icon, c.color AS category_color,
               w.name AS wallet_name
        FROM transactions t
-       JOIN categories c ON t.category_id = c.id
-       JOIN wallets w ON t.wallet_id = w.id
+       LEFT JOIN categories c ON t.category_id = c.id
+       LEFT JOIN wallets w ON t.wallet_id = w.id
        WHERE (? IS NULL OR t.customer_id = ?)
        ORDER BY t.date DESC`,
       [customer_id || null, customer_id || null],
@@ -127,106 +209,177 @@ app.get("/api/transactions", async (req, res) => {
   }
 });
 
-// Thêm giao dịch chi tiêu mới & Trừ số dư ví
+// 2. Thêm giao dịch chi tiêu mới & Trừ số dư ví (Dùng Transaction)
 app.post("/api/transactions", async (req, res) => {
-  const { customer_id, wallet_id, category_id, title, amount, date, note } =
-    req.body;
+  const { customer_id, category_id, title, amount, date, note } = req.body;
+  let { wallet_id } = req.body;
+
   try {
+    // 1. Kiểm tra xem wallet_id có tồn tại trong bảng wallets không
+    let validWallet = false;
+    if (wallet_id) {
+      const [check] = await db.query("SELECT id FROM wallets WHERE id = ?", [
+        wallet_id,
+      ]);
+      if (check.length > 0) validWallet = true;
+    }
+
+    // 2. Nếu không có hoặc wallet_id không hợp lệ, tự tìm ví của customer này
+    if (!validWallet) {
+      const [userWallets] = await db.query(
+        "SELECT id FROM wallets WHERE customer_id = ? LIMIT 1",
+        [customer_id],
+      );
+
+      if (userWallets.length > 0) {
+        wallet_id = userWallets[0].id;
+      } else {
+        // Nếu user này chưa có ví nào trong MySQL, tự động tạo ví mới cho họ
+        const [newWallet] = await db.query(
+          "INSERT INTO wallets (customer_id, balance) VALUES (?, 0.00)",
+          [customer_id],
+        );
+        wallet_id = newWallet.insertId;
+      }
+    }
+
+    // 3. Tiến hành insert giao dịch với wallet_id hợp lệ
     const [result] = await db.query(
       `INSERT INTO transactions (customer_id, wallet_id, category_id, title, amount, date, note)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         customer_id,
         wallet_id,
-        category_id,
+        category_id || 1,
         title,
-        Number(amount),
+        amount,
         date || new Date(),
         note || null,
       ],
     );
 
-    // Trừ số dư ví
-    await db.query(
-      "UPDATE wallets SET balance = balance - ? WHERE id = ? AND customer_id = ?",
-      [Number(amount), wallet_id, customer_id],
-    );
-
     res.status(201).json({
-      message: "Ghi nhận chi tiêu thành công",
+      message: "Thêm giao dịch thành công!",
       insertId: result.insertId,
+      wallet_id: wallet_id,
     });
   } catch (err) {
-    console.error("Lỗi tạo transaction:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Lỗi thêm giao dịch:", err);
+    res.status(500).json({ error: err.message || "Lỗi tạo chi tiêu!" });
   }
 });
 
-// Sửa giao dịch chi tiêu & Cập nhật chênh lệch số dư ví
+// 3. Sửa giao dịch chi tiêu & Cập nhật chênh lệch số dư ví (Dùng Transaction)
 app.put("/api/transactions/:id", async (req, res) => {
   const { id } = req.params;
-  const { title, amount, category_id, date, note } = req.body;
+  const { title, amount, category_id, date, note, customer_id } = req.body;
+  const newAmount = Number(amount);
 
+  if (isNaN(newAmount) || newAmount <= 0) {
+    return res.status(400).json({ error: "Số tiền không hợp lệ!" });
+  }
+
+  const conn = await db.getConnection();
   try {
-    // 1. Lấy thông tin giao dịch cũ
-    const [oldRows] = await db.query(
-      "SELECT * FROM transactions WHERE id = ?",
-      [id],
-    );
-    if (oldRows.length === 0) {
-      return res.status(404).json({ message: "Không tìm thấy giao dịch" });
+    await conn.beginTransaction();
+
+    // 1. Kiểm tra giao dịch cũ (có kèm customer_id nếu có để bảo mật)
+    let checkSql = "SELECT * FROM transactions WHERE id = ?";
+    let checkParams = [id];
+    if (customer_id) {
+      checkSql += " AND customer_id = ?";
+      checkParams.push(customer_id);
     }
+
+    const [oldRows] = await conn.query(checkSql, checkParams);
+    if (oldRows.length === 0) {
+      await conn.rollback();
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy giao dịch hoặc không có quyền sửa!" });
+    }
+
     const oldTx = oldRows[0];
     const oldAmount = Number(oldTx.amount);
-    const newAmount = Number(amount);
 
     // 2. Cập nhật bảng transactions
-    await db.query(
+    await conn.query(
       `UPDATE transactions 
        SET title = ?, amount = ?, category_id = ?, date = ?, note = ?
        WHERE id = ?`,
-      [title, newAmount, category_id, date, note || null, id],
+      [
+        title,
+        newAmount,
+        category_id || oldTx.category_id,
+        date || oldTx.date,
+        note !== undefined ? note : oldTx.note,
+        id,
+      ],
     );
 
-    // 3. Tính toán chênh lệch số dư ví:
-    // Nếu tiền chi tăng lên (newAmount > oldAmount) -> ví bị trừ thêm
-    // Nếu tiền chi giảm đi (newAmount < oldAmount) -> ví được cộng lại
+    // 3. Cập nhật chênh lệch số dư ví
     const diff = newAmount - oldAmount;
-    await db.query("UPDATE wallets SET balance = balance - ? WHERE id = ?", [
-      diff,
-      oldTx.wallet_id,
-    ]);
+    if (diff !== 0) {
+      await conn.query(
+        "UPDATE wallets SET balance = balance - ? WHERE id = ?",
+        [diff, oldTx.wallet_id],
+      );
+    }
 
+    await conn.commit();
     res.json({ message: "Cập nhật giao dịch thành công" });
   } catch (err) {
+    await conn.rollback();
     console.error("Lỗi cập nhật transaction:", err);
     res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
   }
 });
 
-// Xóa giao dịch chi tiêu & Hoàn trả tiền vào ví
+// 4. Xóa giao dịch chi tiêu & Hoàn trả tiền vào ví (Dùng Transaction)
 app.delete("/api/transactions/:id", async (req, res) => {
   const { id } = req.params;
+  const { customer_id } = req.query; // Nhận thêm customer_id từ query param
+
+  const conn = await db.getConnection();
   try {
-    const [txs] = await db.query("SELECT * FROM transactions WHERE id = ?", [
-      id,
-    ]);
+    await conn.beginTransaction();
+
+    let checkSql = "SELECT * FROM transactions WHERE id = ?";
+    let checkParams = [id];
+    if (customer_id) {
+      checkSql += " AND customer_id = ?";
+      checkParams.push(customer_id);
+    }
+
+    const [txs] = await conn.query(checkSql, checkParams);
     if (txs.length === 0) {
-      return res.status(404).json({ message: "Không tìm thấy giao dịch" });
+      await conn.rollback();
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy giao dịch hoặc không có quyền xóa!" });
     }
 
     const tx = txs[0];
-    // Hoàn lại tiền chi tiêu vào ví
-    await db.query("UPDATE wallets SET balance = balance + ? WHERE id = ?", [
+
+    // 1. Hoàn lại tiền vào ví
+    await conn.query("UPDATE wallets SET balance = balance + ? WHERE id = ?", [
       Number(tx.amount),
       tx.wallet_id,
     ]);
 
-    await db.query("DELETE FROM transactions WHERE id = ?", [id]);
+    // 2. Xóa giao dịch
+    await conn.query("DELETE FROM transactions WHERE id = ?", [id]);
+
+    await conn.commit();
     res.json({ message: "Xóa giao dịch thành công" });
   } catch (err) {
+    await conn.rollback();
     console.error("Lỗi xóa transaction:", err);
     res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
   }
 });
 
@@ -313,7 +466,55 @@ app.get("/api/wallets", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+app.post("/api/wallets/deposit", async (req, res) => {
+  const { customer_id, amount } = req.body;
+  const depositAmount = Number(amount);
 
+  if (!customer_id || isNaN(depositAmount) || depositAmount <= 0) {
+    return res.status(400).json({ error: "Số tiền nạp không hợp lệ!" });
+  }
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 1. Cộng tiền vào ví của khách hàng
+    await conn.query(
+      "UPDATE wallets SET balance = balance + ? WHERE customer_id = ?",
+      [depositAmount, customer_id],
+    );
+
+    // 2. Lấy số dư mới nhất
+    const [wallets] = await conn.query(
+      "SELECT balance FROM wallets WHERE customer_id = ? LIMIT 1",
+      [customer_id],
+    );
+
+    if (wallets.length === 0) {
+      throw new Error("Không tìm thấy ví cho người dùng này!");
+    }
+
+    const newBalance = Number(wallets[0].balance);
+
+    // 3. Ghi log hệ thống
+    await conn.query(
+      "INSERT INTO system_logs (customer_id, action, level, details) VALUES (?, 'WALLET_DEPOSIT', 'INFO', ?)",
+      [customer_id, `Nạp ${depositAmount.toLocaleString("vi-VN")} đ vào ví`],
+    );
+
+    await conn.commit();
+    res.json({
+      message: "Nạp tiền thành công!",
+      newBalance: newBalance,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error("Lỗi nạp tiền:", err);
+    res.status(500).json({ error: err.message || "Lỗi xử lý nạp tiền!" });
+  } finally {
+    conn.release();
+  }
+});
 /* ===================================================
    5. CÁC API DÀNH CHO WEB ADMIN DASHBOARD
 =================================================== */
@@ -351,27 +552,22 @@ app.get("/api/admin/dashboard", async (req, res) => {
 // Danh sách khách hàng (users.html)
 app.get("/api/admin/users", async (req, res) => {
   try {
-    const [rows] = await db.query(
-      "SELECT id, name, email, initial_balance, status, created_at FROM customers ORDER BY id ASC",
+    // Lấy thông tin khách hàng kèm số dư từ bảng wallets và tổng tiền đã tiêu
+    const [users] = await db.query(
+      `SELECT c.id, c.name, c.email, c.status, c.created_at,
+              COALESCE(w.balance, 0) AS wallet_balance,
+              COALESCE(SUM(t.amount), 0) AS total_spent
+       FROM customers c
+       LEFT JOIN wallets w ON c.id = w.customer_id
+       LEFT JOIN transactions t ON c.id = t.customer_id
+       GROUP BY c.id, w.id
+       ORDER BY c.created_at DESC`,
     );
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: "Lỗi lấy danh sách khách hàng" });
-  }
-});
 
-// Khóa / Mở khóa khách hàng (users.html)
-app.patch("/api/admin/users/:id/status", async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
-  try {
-    await db.query("UPDATE customers SET status = ? WHERE id = ?", [
-      status,
-      id,
-    ]);
-    res.json({ message: "Cập nhật trạng thái thành công" });
+    res.json(users);
   } catch (err) {
-    res.status(500).json({ error: "Lỗi cập nhật trạng thái" });
+    console.error("Lỗi lấy danh sách khách hàng cho admin:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 // Lấy danh sách cấu hình

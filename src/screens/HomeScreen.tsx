@@ -61,7 +61,7 @@ export default function HomeScreen({
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
-    setMonthlyExpense(getMonthlyExpense(year, month));
+    setMonthlyExpense(getMonthlyExpense(year, month, userId));
     setMonthlyIncome(getMonthlyIncome(year, month));
 
     if (userId) {
@@ -217,7 +217,9 @@ export default function HomeScreen({
               : { backgroundColor: "#ECFDF5" },
           ]}
         >
-          <Text style={styles.remainingLabel}>{t("home.budget_remaining")}</Text>
+          <Text style={styles.remainingLabel}>
+            {t("home.budget_remaining")}
+          </Text>
           <Text
             style={[
               styles.remainingAmount,

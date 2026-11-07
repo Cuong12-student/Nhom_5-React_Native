@@ -75,8 +75,6 @@ export async function loginUser(
   password: string,
 ): Promise<User> {
   const trimmedEmail = email.trim().toLowerCase();
-  if (!trimmedEmail) throw new Error("Vui lòng nhập email!");
-  if (!password) throw new Error("Vui lòng nhập mật khẩu!");
 
   const response = await fetch(`${API_BASE_URL}/login`, {
     method: "POST",
@@ -87,21 +85,18 @@ export async function loginUser(
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || "Đăng nhập thất bại!");
+    throw new Error(data.error || data.message || "Đăng nhập thất bại!");
   }
 
-  const customer = data.customer;
-  const user: User = {
-    id: customer.id,
-    name: customer.name,
-    email: customer.email,
-    initial_balance: Number(customer.initial_balance) || 0,
-    walletBalance: Number(customer.initial_balance) || 0,
-    monthlySpendLimit: 5_000_000,
-  };
+  // Lấy dữ liệu user an toàn (chấp nhận cả data.user hoặc data)
+  const loggedInUser: User = data.user || data;
 
-  await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
-  return user;
+  if (!loggedInUser || !loggedInUser.id) {
+    throw new Error("Dữ liệu phản hồi từ máy chủ không hợp lệ!");
+  }
+
+  await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(loggedInUser));
+  return loggedInUser;
 }
 
 export async function registerUser(
@@ -109,24 +104,37 @@ export async function registerUser(
   email: string,
   password: string,
 ): Promise<User> {
-  const trimmedName = name.trim();
   const trimmedEmail = email.trim().toLowerCase();
 
-  if (!trimmedName) throw new Error("Vui lòng nhập họ và tên!");
-  if (!trimmedEmail) throw new Error("Vui lòng nhập email!");
-  if (!password || password.length < 3) {
-    throw new Error("Mật khẩu phải có ít nhất 3 ký tự!");
+  const baseUrl = API_BASE_URL.endsWith("/api")
+    ? API_BASE_URL
+    : `${API_BASE_URL}/api`;
+
+  const response = await fetch(`${baseUrl}/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: name.trim(),
+      email: trimmedEmail,
+      password: password,
+    }),
+  });
+
+  const contentType = response.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    const rawText = await response.text();
+    console.error("Lỗi kết nối server đăng ký:", rawText);
+    throw new Error("Không thể kết nối đến máy chủ đăng ký!");
   }
 
-  // Tạm thời tự động tạo trên bộ nhớ, sẵn sàng nối endpoint /api/register khi thêm vào server
-  const newUser: User = {
-    id: Date.now(),
-    name: trimmedName,
-    email: trimmedEmail,
-    walletBalance: 0,
-    monthlySpendLimit: 5_000_000,
-  };
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Đăng ký không thành công!");
+  }
 
+  const newUser: User = data.user || data;
+
+  // Lưu thông tin người dùng có ID thực tế từ MySQL vào máy
   await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser));
   return newUser;
 }
@@ -135,6 +143,7 @@ export async function registerUser(
    3. QUẢN LÝ VÍ & SỐ DƯ
 =================================================== */
 
+// 1. Lấy số dư ví (chỉ giữ 1 hàm duy nhất)
 export async function getWalletBalance(customerId?: number): Promise<number> {
   if (!customerId) return 0;
   try {
@@ -147,12 +156,13 @@ export async function getWalletBalance(customerId?: number): Promise<number> {
         return Number(wallets[0].balance) || 0;
       }
     }
-  } catch {
-    // Fallback offline
+  } catch (error) {
+    console.warn("Lỗi lấy số dư ví, dùng fallback:", error);
   }
   return 0;
 }
 
+// 2. Nạp tiền vào ví và cập nhật lại bộ nhớ máy
 export async function depositToWallet(
   customerId: number,
   amount: number,
@@ -161,7 +171,50 @@ export async function depositToWallet(
   if (Number.isNaN(safeAmount) || safeAmount <= 0) {
     throw new Error("Số tiền nạp phải lớn hơn 0!");
   }
-  return safeAmount;
+
+  // Tự động kiểm tra để tránh trùng lặp chữ /api
+  const baseUrl = API_BASE_URL.endsWith("/api")
+    ? API_BASE_URL
+    : `${API_BASE_URL}/api`;
+
+  const response = await fetch(`${baseUrl}/wallets/deposit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      customer_id: customerId,
+      amount: safeAmount,
+    }),
+  });
+
+  const contentType = response.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    const rawText = await response.text();
+    console.error("Server không trả về JSON:", rawText);
+    throw new Error(
+      "Không kết nối được tới API nạp tiền (404/500). Hãy kiểm tra lại node server.js đã restart chưa!",
+    );
+  }
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || "Không thể nạp tiền!");
+  }
+
+  const newBalance = Number(data.newBalance);
+
+  // Cập nhật số dư mới vào AsyncStorage
+  try {
+    const storedUser = await AsyncStorage.getItem(USER_STORAGE_KEY);
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      parsedUser.walletBalance = newBalance;
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(parsedUser));
+    }
+  } catch (e) {
+    console.warn("Lỗi lưu số dư mới vào AsyncStorage:", e);
+  }
+
+  return newBalance;
 }
 
 /* ===================================================
@@ -250,7 +303,7 @@ export const addTransaction = async (
 
   const payload = {
     customer_id: customerId || 1,
-    wallet_id: 1, // Ví chính mặc định
+    wallet_id: newTx.wallet_id,
     category_id: categoryId,
     title: newTx.title,
     amount: safeAmount,
@@ -375,30 +428,50 @@ export const deleteCategory = async (id: number | string): Promise<void> => {
 export function getTransactionsByMonth(
   year: number,
   month: number,
+  customerId?: number,
 ): Transaction[] {
   return memoryTransactions.filter((t) => {
+    // 1. Lọc theo User: Nếu có truyền customerId thì chỉ lấy giao dịch của user đó
+    if (
+      customerId &&
+      t.customer_id &&
+      Number(t.customer_id) !== Number(customerId)
+    ) {
+      return false;
+    }
+
+    // 2. Lọc theo Năm & Tháng
     const d = new Date(t.date);
     if (Number.isNaN(d.getTime())) return false;
     return d.getFullYear() === year && d.getMonth() === month;
   });
 }
 
-export function getMonthlyExpense(year: number, month: number): number {
-  return getTransactionsByMonth(year, month).reduce(
+export function getMonthlyExpense(
+  year: number,
+  month: number,
+  customerId?: number,
+): number {
+  return getTransactionsByMonth(year, month, customerId).reduce(
     (sum, t) => sum + (Number(t.amount) || 0),
     0,
   );
 }
 
-export function getMonthlyIncome(year: number, month: number): number {
+export function getMonthlyIncome(
+  year: number,
+  month: number,
+  customerId?: number,
+): number {
   return 0; // Hệ thống chuyên biệt quản lý chi tiêu
 }
 
 export function getExpenseByCategory(
   year: number,
   month: number,
+  customerId?: number,
 ): { category: string; amount: number; fraction: number }[] {
-  const monthTx = getTransactionsByMonth(year, month);
+  const monthTx = getTransactionsByMonth(year, month, customerId);
   const totalExpense = monthTx.reduce(
     (sum, t) => sum + (Number(t.amount) || 0),
     0,
@@ -420,7 +493,10 @@ export function getExpenseByCategory(
     .sort((a, b) => b.amount - a.amount);
 }
 
-export function getLast6MonthsExpense(now = new Date()): {
+export function getLast6MonthsExpense(
+  now = new Date(),
+  customerId?: number,
+): {
   label: string;
   amount: number;
   year: number;
@@ -431,7 +507,7 @@ export function getLast6MonthsExpense(now = new Date()): {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const year = d.getFullYear();
     const month = d.getMonth();
-    const expense = getMonthlyExpense(year, month);
+    const expense = getMonthlyExpense(year, month, customerId);
     result.push({
       label: `T${month + 1}\n${year}`,
       amount: expense,
@@ -447,7 +523,8 @@ export function getRemainingBudget(
   year: number,
   month: number,
 ): { limit: number; spent: number; remaining: number } {
-  const spent = getMonthlyExpense(year, month);
+  // ĐÃ SỬA: Truyền userId vào getMonthlyExpense để tính đúng chi tiêu của người dùng hiện tại
+  const spent = getMonthlyExpense(year, month, userId);
   const limit = 5_000_000;
   return { limit, spent, remaining: limit - spent };
 }

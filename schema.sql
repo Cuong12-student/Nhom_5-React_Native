@@ -8,85 +8,79 @@ DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS wallets;
 DROP TABLE IF EXISTS customers;
 DROP TABLE IF EXISTS admins;
-CREATE DATABASE IF NOT EXISTS finance_management
-CHARACTER SET utf8mb4 
-COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS finance_management 
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 USE finance_management;
--- =====================================================
--- 2. TẠO CÁC BẢNG MỚI
--- =====================================================
 
--- Bảng 1: Quản trị viên (Dành riêng cho Web Dashboard, không bị khóa, không ví)
-CREATE TABLE admins (
+-- 1. Bảng Quản trị viên (Đăng nhập Web Dashboard)
+CREATE TABLE IF NOT EXISTS admins (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
--- Bảng 2: Khách hàng / Người dùng di động (Đăng ký từ app, có số dư ban đầu, có status)
-CREATE TABLE customers (
+-- 2. Bảng Khách hàng (Định danh người dùng App Mobile)
+-- Đã bỏ cột initial_balance để tập trung tiền bạc về bảng wallets
+CREATE TABLE IF NOT EXISTS customers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    initial_balance DECIMAL(15, 2) DEFAULT 0.00,
     status ENUM('active', 'blocked') DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
--- Bảng 3: Ví tiền của Customer
-CREATE TABLE wallets (
+-- 3. Bảng Ví tiền (Nơi DUY NHẤT lưu trữ số dư tiền tệ)
+CREATE TABLE IF NOT EXISTS wallets (
     id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    balance DECIMAL(15, 2) DEFAULT 0.00,
+    name VARCHAR(100) DEFAULT 'Ví cá nhân',
+    balance DECIMAL(15, 2) NOT NULL DEFAULT 0.00,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
--- Bảng 4: Danh mục chi tiêu (ĐÃ BỎ CỘT TYPE)
--- customer_id IS NULL: Danh mục chi tiêu mặc định hệ thống
--- customer_id CÓ GIÁ TRỊ: Danh mục chi tiêu riêng do người dùng tự tạo
-CREATE TABLE categories (
+-- 4. Bảng Danh mục chi tiêu
+CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT NULL,
+    customer_id INT NULL, -- NULL là danh mục mặc định của hệ thống
     name VARCHAR(100) NOT NULL,
-    icon VARCHAR(50) DEFAULT 'pricetag-outline',
-    color VARCHAR(20) DEFAULT '#EF4444',
+    icon VARCHAR(50) DEFAULT 'tag',
+    color VARCHAR(20) DEFAULT '#10B981',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
--- Bảng 5: Giao dịch chi tiêu (ĐÃ BỎ CỘT TYPE - Mặc định mọi bản ghi đều là khoản chi)
-CREATE TABLE transactions (
+-- 5. Bảng Giao dịch chi tiêu
+CREATE TABLE IF NOT EXISTS transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
     wallet_id INT NOT NULL,
     category_id INT NOT NULL,
-    title VARCHAR(200) NOT NULL,
+    title VARCHAR(255) NOT NULL,
     amount DECIMAL(15, 2) NOT NULL,
-    date DATETIME NOT NULL,
+    date DATETIME DEFAULT CURRENT_TIMESTAMP,
     note TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
     FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
--- Bảng 6: Cấu hình hệ thống (Admin quản lý trên Web)
-CREATE TABLE system_configs (
+-- 6. Bảng Cấu hình hệ thống (Quản lý tại system.html)
+CREATE TABLE IF NOT EXISTS system_configs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     config_key VARCHAR(100) NOT NULL UNIQUE,
     config_value VARCHAR(255) NOT NULL,
     description VARCHAR(255),
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
 
--- Bảng 7: Nhật ký hoạt động & lỗi hệ thống (Admin theo dõi trên Web)
-CREATE TABLE system_logs (
+-- 7. Bảng Nhật ký hệ thống (System Logs)
+CREATE TABLE IF NOT EXISTS system_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NULL,
     action VARCHAR(100) NOT NULL,
@@ -94,43 +88,49 @@ CREATE TABLE system_logs (
     details TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
--- =====================================================
--- 3. DỮ LIỆU KHỞI TẠO (SEED DATA)
--- =====================================================
+-- ========================================================
+-- SEED DATA (DỮ LIỆU KHỞI TẠO MẶC ĐỊNH)
+-- ========================================================
 
--- 1. Tài khoản Admin khởi tạo (Dùng đăng nhập Web Dashboard)
+-- Tài khoản Admin mặc định (Web)
 INSERT INTO admins (id, name, email, password) VALUES
-(1, 'Super Admin', 'admin@finance.com', 'admin123');
+(1, 'Administrator', 'admin@finance.com', 'admin123')
+ON DUPLICATE KEY UPDATE name=VALUES(name);
 
--- 2. Tài khoản Customer mẫu (Dùng đăng nhập App di động)
-INSERT INTO customers (id, name, email, password, initial_balance, status) VALUES
-(1, 'Nguyen Van A', 'user@finance.com', '123456', 5000000.00, 'active');
+-- Tài khoản Khách hàng mẫu (App Mobile)
+INSERT INTO customers (id, name, email, password, status) VALUES
+(1, 'Nguyen Van A', 'user@finance.com', '123456', 'active')
+ON DUPLICATE KEY UPDATE name=VALUES(name);
 
--- 3. Ví tiền mẫu (Số dư ban đầu 5.000.000 VND)
+-- Ví mặc định cho khách hàng mẫu (Số dư 5.000.000 đ)
 INSERT INTO wallets (id, customer_id, name, balance) VALUES
-(1, 1, 'Ví Tiền Mặt', 5000000.00);
+(1, 1, 'Ví cá nhân', 5000000.00)
+ON DUPLICATE KEY UPDATE balance=VALUES(balance);
 
--- 4. Danh mục chi tiêu mặc định hệ thống (Chỉ toàn các mục chi)
+-- Danh mục chi tiêu mặc định của hệ thống
 INSERT INTO categories (id, customer_id, name, icon, color) VALUES
 (1, NULL, 'Ăn uống', 'fast-food', '#EF4444'),
 (2, NULL, 'Đi lại', 'car', '#F59E0B'),
 (3, NULL, 'Mua sắm', 'cart', '#8B5CF6'),
-(4, NULL, 'Hóa đơn & Điện nước', 'receipt', '#3B82F6'),
-(5, NULL, 'Giải trí', 'game-controller', '#EC4899');
+(4, NULL, 'Hóa đơn & Tiện ích', 'receipt', '#3B82F6'),
+(5, NULL, 'Giải trí', 'game-controller', '#EC4899')
+ON DUPLICATE KEY UPDATE name=VALUES(name);
 
--- 5. Giao dịch chi tiêu mẫu
+-- Giao dịch mẫu
 INSERT INTO transactions (id, customer_id, wallet_id, category_id, title, amount, date, note) VALUES
 (1, 1, 1, 1, 'Cơm trưa văn phòng', 40000.00, NOW(), 'Cơm gà xối mỡ'),
-(2, 1, 1, 2, 'Đổ xăng xe máy', 70000.00, NOW(), 'Xăng A95');
+(2, 1, 1, 2, 'Đổ xăng xe máy', 70000.00, NOW(), 'Xăng A95')
+ON DUPLICATE KEY UPDATE title=VALUES(title);
 
--- 6. Cấu hình hệ thống mặc định
+-- Cấu hình hệ thống mặc định
 INSERT INTO system_configs (config_key, config_value, description) VALUES
 ('DEFAULT_CURRENCY', 'VND', 'Đơn vị tiền tệ hiển thị'),
-('APP_VERSION', '1.0.0', 'Phiên bản ứng dụng di động');
+('APP_VERSION', '1.0.0', 'Phiên bản ứng dụng di động')
+ON DUPLICATE KEY UPDATE config_value=VALUES(config_value);
 
--- 7. Nhật ký hệ thống mẫu
+-- Nhật ký hệ thống ban đầu
 INSERT INTO system_logs (customer_id, action, level, details) VALUES
 (NULL, 'SYSTEM_STARTUP', 'INFO', 'Hệ thống khởi chạy thành công'),
 (1, 'CUSTOMER_REGISTER', 'INFO', 'Customer Nguyen Van A kích hoạt tài khoản');
