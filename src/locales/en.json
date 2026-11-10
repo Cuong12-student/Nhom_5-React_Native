@@ -121,6 +121,7 @@
     "note_label": "Note",
     "note_placeholder": "Optional",
     "submit": "Save Transaction",
+    "save_changes": "Save Changes",
     "type_label": "Transaction Type",
     "type_expense": "Expense",
     "type_income": "Income"

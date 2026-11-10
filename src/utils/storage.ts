@@ -45,7 +45,6 @@ export interface Category {
   name: string;
   icon?: string;
   color?: string;
-  type?: "expense" | "income";
 }
 
 export interface Wallet {
@@ -242,6 +241,10 @@ export async function setSpendLimit(
 export const getTransactions = async (
   customerId?: number,
 ): Promise<Transaction[]> => {
+  const currentKey = customerId
+    ? `${TX_STORAGE_KEY}_${customerId}`
+    : TX_STORAGE_KEY;
+
   try {
     const url = customerId
       ? `${API_BASE_URL}/transactions?customer_id=${customerId}`
@@ -251,24 +254,30 @@ export const getTransactions = async (
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
-        const formatted: Transaction[] = data.map((item: any) => ({
-          id: item.id,
-          customer_id: item.customer_id,
-          wallet_id: item.wallet_id,
-          category_id: item.category_id,
-          title: item.title || "",
-          amount: Number(item.amount) || 0,
-          type: "expense", // Hệ thống mới chuyên quản lý chi tiêu
-          category: item.category_name || item.category || "other",
-          category_icon: item.category_icon || "tag",
-          category_color: item.category_color || "#EF4444",
-          date: item.date
-            ? String(item.date).slice(0, 10)
-            : new Date().toISOString().slice(0, 10),
-          note: item.note || "",
-        }));
+        const formatted: Transaction[] = data
+          .filter(
+            (item: any) =>
+              !customerId || Number(item.customer_id) === Number(customerId),
+          )
+          .map((item: any) => ({
+            id: item.id,
+            customer_id: item.customer_id,
+            wallet_id: item.wallet_id,
+            category_id: item.category_id,
+            title: item.title || "",
+            amount: Number(item.amount) || 0,
+            type: "expense",
+            category: item.category_name || item.category || "other",
+            category_icon: item.category_icon || "tag",
+            category_color: item.category_color || "#EF4444",
+            date: item.date
+              ? String(item.date).slice(0, 10)
+              : new Date().toISOString().slice(0, 10),
+            note: item.note || "",
+          }));
 
-        await AsyncStorage.setItem(TX_STORAGE_KEY, JSON.stringify(formatted));
+        // Lưu cache riêng theo từng customerId
+        await AsyncStorage.setItem(currentKey, JSON.stringify(formatted));
         memoryTransactions = formatted;
         return formatted;
       }
@@ -277,18 +286,20 @@ export const getTransactions = async (
     // Fallback offline
   }
 
-  const localData = await AsyncStorage.getItem(TX_STORAGE_KEY);
+  // Đọc từ key cache riêng của user
+  const localData = await AsyncStorage.getItem(currentKey);
   if (localData) {
     try {
       const parsed = JSON.parse(localData);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         memoryTransactions = parsed;
         return memoryTransactions;
       }
     } catch {}
   }
 
-  return [...memoryTransactions];
+  memoryTransactions = [];
+  return [];
 };
 
 export const addTransaction = async (
@@ -337,29 +348,132 @@ export const addTransaction = async (
   return itemToAdd;
 };
 
-export const updateTransaction = async (tx: Transaction): Promise<void> => {
+export const updateTransaction = async (
+  tx: Transaction,
+  customerId?: number,
+): Promise<{ newBalance?: number }> => {
+  const targetCustomerId = customerId || tx.customer_id;
+
+  const baseUrl = API_BASE_URL.endsWith("/api")
+    ? API_BASE_URL
+    : `${API_BASE_URL}/api`;
+
+  // 1. Chuẩn hóa chuỗi ngày an toàn (cast sang any để tránh lỗi never/instanceof)
+  const rawDate: any = tx.date;
+  let formattedDate: string;
+  if (!rawDate) {
+    formattedDate = new Date().toISOString().slice(0, 19).replace("T", " ");
+  } else if (typeof rawDate === "string") {
+    formattedDate = rawDate.includes("T")
+      ? rawDate.slice(0, 19).replace("T", " ")
+      : rawDate.includes(" ")
+        ? rawDate
+        : `${rawDate} 00:00:00`;
+  } else if (rawDate instanceof Date) {
+    formattedDate = rawDate.toISOString().slice(0, 19).replace("T", " ");
+  } else {
+    formattedDate = String(rawDate);
+  }
+
+  // Chuẩn hóa category_id luôn về kiểu số (number)
+  const anyTx = tx as any;
+  const parsedCategoryId = Number(tx.category_id || anyTx.category || 1);
+
+  // 2. Gửi request cập nhật lên Backend
+  const response = await fetch(`${baseUrl}/transactions/${tx.id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      title: tx.title || anyTx.name,
+      amount: Number(tx.amount) || 0,
+      category_id: parsedCategoryId,
+      date: formattedDate,
+      note: tx.note !== undefined ? tx.note : null,
+      customer_id: targetCustomerId,
+    }),
+  });
+
+  const contentType = response.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    const rawText = await response.text();
+    console.error("Lỗi cập nhật chi tiêu:", rawText);
+    throw new Error("Không thể kết nối đến máy chủ để cập nhật!");
+  }
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(
+      data.error || data.message || "Cập nhật chi tiêu thất bại!",
+    );
+  }
+
+  // 3. Cập nhật dữ liệu vào bộ nhớ đệm
   memoryTransactions = memoryTransactions.map((item) =>
-    String(item.id) === String(tx.id) ? tx : item,
+    String(item.id) === String(tx.id)
+      ? {
+          ...item,
+          ...tx,
+          amount: Number(tx.amount),
+          date: formattedDate,
+          category_id: parsedCategoryId,
+        }
+      : item,
   );
+
   await AsyncStorage.setItem(
     TX_STORAGE_KEY,
     JSON.stringify(memoryTransactions),
   );
 
-  await fetch(`${API_BASE_URL}/transactions/${tx.id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: tx.title,
-      amount: tx.amount,
-      category_id: tx.category_id || 1,
-      date: tx.date,
-      note: tx.note || null,
-    }),
-  });
-};
+  // 4. Cập nhật số dư ví mới vào Storage
+  if (data.newBalance !== undefined) {
+    try {
+      const storedUser = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        parsedUser.walletBalance = Number(data.newBalance);
+        parsedUser.balance = Number(data.newBalance);
+        await AsyncStorage.setItem(
+          USER_STORAGE_KEY,
+          JSON.stringify(parsedUser),
+        );
+      }
+    } catch (e) {
+      console.warn("Lỗi cập nhật số dư ví:", e);
+    }
+  }
 
-export const deleteTransaction = async (id: number | string): Promise<void> => {
+  return data;
+};
+export const deleteTransaction = async (
+  id: number | string,
+  customerId?: number,
+): Promise<{ newBalance?: number }> => {
+  const baseUrl = API_BASE_URL.endsWith("/api")
+    ? API_BASE_URL
+    : `${API_BASE_URL}/api`;
+
+  const url = customerId
+    ? `${baseUrl}/transactions/${id}?customer_id=${customerId}`
+    : `${baseUrl}/transactions/${id}`;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+  });
+
+  const contentType = response.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    const rawText = await response.text();
+    console.error("Lỗi xóa chi tiêu:", rawText);
+    throw new Error("Không thể kết nối đến máy chủ để xóa!");
+  }
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || data.message || "Xóa chi tiêu thất bại!");
+  }
+
+  // Xóa khỏi cache và storage
   memoryTransactions = memoryTransactions.filter(
     (item) => String(item.id) !== String(id),
   );
@@ -368,57 +482,111 @@ export const deleteTransaction = async (id: number | string): Promise<void> => {
     JSON.stringify(memoryTransactions),
   );
 
-  await fetch(`${API_BASE_URL}/transactions/${id}`, {
-    method: "DELETE",
-  });
+  if (data.newBalance !== undefined) {
+    try {
+      const storedUser = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        parsedUser.walletBalance = Number(data.newBalance);
+        parsedUser.balance = Number(data.newBalance);
+        await AsyncStorage.setItem(
+          USER_STORAGE_KEY,
+          JSON.stringify(parsedUser),
+        );
+      }
+    } catch (e) {
+      console.warn("Lỗi cập nhật số dư ví sau khi xóa:", e);
+    }
+  }
+
+  return data;
 };
 
 /* ===================================================
    6. QUẢN LÝ DANH MỤC (CATEGORIES)
 =================================================== */
-
+// 1. LẤY DANH MỤC
 export const getCategories = async (
   customerId?: number,
 ): Promise<Category[]> => {
-  try {
-    const url = customerId
-      ? `${API_BASE_URL}/categories?customer_id=${customerId}`
-      : `${API_BASE_URL}/categories`;
+  const baseUrl = API_BASE_URL.endsWith("/api")
+    ? API_BASE_URL
+    : `${API_BASE_URL}/api`;
+  const url = customerId
+    ? `${baseUrl}/categories?customer_id=${customerId}`
+    : `${baseUrl}/categories`;
 
+  try {
     const res = await fetch(url);
     if (res.ok) {
-      const data: Category[] = await res.json();
-      if (Array.isArray(data)) {
-        await AsyncStorage.setItem(CAT_STORAGE_KEY, JSON.stringify(data));
-        return data;
-      }
+      return await res.json();
     }
-  } catch {}
-
-  return [
-    { id: 1, name: "Ăn uống", icon: "fast-food", color: "#EF4444" },
-    { id: 2, name: "Đi lại", icon: "car", color: "#F59E0B" },
-    { id: 3, name: "Mua sắm", icon: "cart", color: "#8B5CF6" },
-    { id: 4, name: "Hóa đơn & Điện nước", icon: "receipt", color: "#3B82F6" },
-  ];
+  } catch (e) {
+    console.warn("Lỗi tải danh mục:", e);
+  }
+  return [];
 };
 
-export const addCategory = async (
-  newCat: Omit<Category, "id">,
+// 2. THÊM DANH MỤC
+export const createCategory = async (
+  category: { name: string; icon: string; color: string },
+  customerId?: number,
 ): Promise<Category> => {
-  const res = await fetch(`${API_BASE_URL}/categories`, {
+  const baseUrl = API_BASE_URL.endsWith("/api")
+    ? API_BASE_URL
+    : `${API_BASE_URL}/api`;
+  const res = await fetch(`${baseUrl}/categories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(newCat),
+    body: JSON.stringify({ ...category, customer_id: customerId }),
   });
+
   const data = await res.json();
-  return { ...newCat, id: data.insertId || Date.now() };
+  if (!res.ok) throw new Error(data.error || "Thêm danh mục thất bại!");
+  return data.category;
 };
 
-export const deleteCategory = async (id: number | string): Promise<void> => {
-  await fetch(`${API_BASE_URL}/categories/${id}`, {
-    method: "DELETE",
+// 3. SỬA DANH MỤC
+export const updateCategory = async (
+  id: number | string,
+  category: { name: string; icon: string; color: string },
+  customerId?: number,
+): Promise<void> => {
+  const baseUrl = API_BASE_URL.endsWith("/api")
+    ? API_BASE_URL
+    : `${API_BASE_URL}/api`;
+  const res = await fetch(`${baseUrl}/categories/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...category,
+      customer_id: customerId,
+    }),
   });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Không thể cập nhật danh mục!");
+  }
+};
+
+// 4. XÓA DANH MỤC
+export const deleteCategory = async (
+  id: number | string,
+  customerId?: number,
+): Promise<void> => {
+  const baseUrl = API_BASE_URL.endsWith("/api")
+    ? API_BASE_URL
+    : `${API_BASE_URL}/api`;
+  const url = customerId
+    ? `${baseUrl}/categories/${id}?customer_id=${customerId}`
+    : `${baseUrl}/categories/${id}`;
+
+  const res = await fetch(url, { method: "DELETE" });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Không thể xóa danh mục!");
+  }
 };
 
 /* ===================================================

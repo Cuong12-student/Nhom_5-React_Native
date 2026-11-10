@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { Alert, View, ActivityIndicator } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import {
   useFonts,
@@ -29,9 +29,13 @@ import { AdBanner } from "./src/components/AdBanner";
 import {
   User,
   addTransaction,
+  updateTransaction,
   depositToWallet,
   getTransactions,
   setSpendLimit,
+  updateCategory,
+  createCategory,
+  deleteCategory,
 } from "./src/utils/storage";
 
 type ScreenType =
@@ -70,7 +74,7 @@ export default function App() {
     Manrope_700Bold,
     Manrope_800ExtraBold,
   });
-
+  const [selectedTx, setSelectedTx] = useState<any>(null);
   if (!fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -129,22 +133,38 @@ export default function App() {
 
   // ─── Xử lý thêm giao dịch ─────────────────────
   const handleSaveTransaction = async (data: any) => {
-    await addTransaction(
-      {
-        title: data.name,
-        amount: data.amount,
+    try {
+      const formattedDate =
+        data.date instanceof Date
+          ? data.date.toISOString().split("T")[0]
+          : data.date;
+
+      const payload = {
+        id: data.id,
+        title: data.name || data.title,
+        amount: Number(data.amount),
         type: data.type || "expense",
+        category_id: Number(data.category_id || data.category || 1),
         category: data.category,
-        date:
-          data.date instanceof Date
-            ? data.date.toISOString().split("T")[0]
-            : data.date,
+        date: formattedDate,
         note: data.note,
-      },
-      currentUser?.id,
-    );
-    triggerRefresh();
-    goBack();
+      };
+
+      if (data.id) {
+        // 👉 Giao dịch cũ: Cập nhật (UPDATE)
+        await updateTransaction(payload as any, currentUser?.id);
+      } else {
+        // 👉 Giao dịch mới: Thêm mới (INSERT)
+        await addTransaction(payload as any, currentUser?.id);
+      }
+
+      triggerRefresh();
+      setSelectedTx(null);
+      goBack();
+    } catch (err: any) {
+      console.error("Lỗi khi lưu giao dịch:", err);
+      Alert.alert("Lỗi", err?.message || "Không thể lưu giao dịch!");
+    }
   };
 
   // ─── Xử lý thay đổi hạn mức ──────────────────
@@ -181,8 +201,18 @@ export default function App() {
       case "add":
         return (
           <TransactionForm
-            onBack={goBack}
-            onSave={(data) => navigateWithAd(() => handleSaveTransaction(data))}
+            userId={currentUser?.id}
+            initialData={selectedTx}
+            onBack={() => {
+              setSelectedTx(null);
+              setRefreshKey((prev) => prev + 1); // Reset khi đóng
+              goBack();
+            }}
+            onSave={(data) =>
+              navigateWithAd(async () => {
+                await handleSaveTransaction(data);
+              })
+            }
           />
         );
 
@@ -197,15 +227,16 @@ export default function App() {
       case "categories":
         return (
           <CategoriesScreen
+            userId={currentUser?.id}
+            onBack={goBack}
             onAddCategory={() => {
-              setSelectedCategory(null);
+              setSelectedCategory(null); // Mở form thêm mới
               pushScreen("category_edit");
             }}
-            onSelectCategory={(item) => {
-              setSelectedCategory(item);
+            onSelectCategory={(item: any) => {
+              setSelectedCategory(item); // Mở form sửa danh mục được chọn
               pushScreen("category_edit");
             }}
-            onBack={stack.length > 1 ? goBack : undefined}
           />
         );
 
@@ -214,16 +245,54 @@ export default function App() {
           <CategoryScreen
             initialData={selectedCategory}
             onBack={goBack}
-            onSave={goBack}
-            onDelete={goBack}
+            onSave={async (categoryData: any) => {
+              try {
+                if (categoryData?.id) {
+                  // Sửa danh mục trong MySQL
+                  await updateCategory(
+                    categoryData.id,
+                    categoryData,
+                    currentUser?.id,
+                  );
+                  Alert.alert("Thành công", "Đã cập nhật danh mục!");
+                } else {
+                  // Thêm danh mục mới vào MySQL
+                  await createCategory(categoryData, currentUser?.id);
+                  Alert.alert("Thành công", "Đã tạo danh mục mới!");
+                }
+                triggerRefresh(); // Kích hoạt làm mới dữ liệu
+                goBack(); // Quay lại CategoriesScreen
+              } catch (err: any) {
+                Alert.alert("Lỗi", err.message || "Không thể lưu danh mục!");
+              }
+            }}
+            onDelete={async (id: any) => {
+              try {
+                // Xóa danh mục trong MySQL
+                await deleteCategory(id, currentUser?.id);
+                Alert.alert("Thành công", "Đã xóa danh mục!");
+                triggerRefresh(); // Kích hoạt làm mới dữ liệu
+                goBack(); // Quay lại CategoriesScreen
+              } catch (err: any) {
+                Alert.alert("Lỗi", err.message || "Không thể xóa danh mục!");
+              }
+            }}
           />
         );
 
       case "history":
         return (
           <HistoryScreen
-            onAddTransaction={() => pushScreen("add")}
-            onSelectTransaction={() => pushScreen("transaction_detail")}
+            userId={currentUser?.id}
+            refreshKey={refreshKey}
+            onAddTransaction={() => {
+              setSelectedTx(null); // Reset để mở form thêm mới trống
+              pushScreen("add");
+            }}
+            onSelectTransaction={(tx: any) => {
+              setSelectedTx(tx);
+              pushScreen("add");
+            }}
             onBack={stack.length > 1 ? goBack : undefined}
           />
         );
@@ -265,7 +334,14 @@ export default function App() {
             userName={currentUser?.name || "Người dùng"}
             userId={currentUser?.id || 0}
             refreshKey={refreshKey}
-            onAdd={() => pushScreen("add")}
+            onAdd={() => {
+              setSelectedTx(null);
+              pushScreen("add");
+            }}
+            onSelectTransaction={(tx: any) => {
+              setSelectedTx(tx);
+              pushScreen("add");
+            }}
             onCategories={() => pushScreen("categories")}
             onHistory={() => pushScreen("history")}
             onSettings={() => navigateWithAd(() => pushScreen("settings"))}

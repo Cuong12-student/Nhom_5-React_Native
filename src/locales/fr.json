@@ -118,6 +118,7 @@
     "note_label": "Note",
     "note_placeholder": "Facultatif",
     "submit": "Enregistrer",
+    "save_changes": "Enregistrer les modifications",
     "type_label": "Type de transaction",
     "type_expense": "Dépense",
     "type_income": "Revenu"

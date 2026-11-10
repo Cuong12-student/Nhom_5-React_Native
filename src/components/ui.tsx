@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   PressableProps,
+  StatusBar,
   ScrollView,
   StyleProp,
   StyleSheet,
@@ -154,7 +155,8 @@ export function IconButton({
     </Tap>
   );
 }
-
+const TOP_INSET =
+  Platform.OS === "android" ? (StatusBar.currentHeight || 24) + 38 : 56;
 export function Screen({
   children,
   scroll = true,
@@ -166,7 +168,7 @@ export function Screen({
   return (
     <SafeAreaView
       edges={["top", "left", "right"]}
-      style={{ flex: 1, backgroundColor: C.bg }}
+      style={{ flex: 1, backgroundColor: C.bg, paddingTop: TOP_INSET }}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -407,25 +409,32 @@ export function CategoryIcon({
   category,
   size = 46,
 }: {
-  category?: { icon?: string; color?: string; name?: string };
+  category?: any;
   size?: number;
 }) {
+  // Lấy icon và màu hỗ trợ cả dạng object lẫn trường phẳng từ MySQL
+  const icon =
+    (typeof category === "object" ? category?.icon : null) ||
+    category?.category_icon ||
+    "pricetag-outline";
+
+  const color =
+    (typeof category === "object" ? category?.color : null) ||
+    category?.category_color ||
+    C.green;
+
   return (
     <View
       style={{
         width: size,
         height: size,
         borderRadius: size * 0.34,
-        backgroundColor: `${category?.color ?? C.green}16`,
+        backgroundColor: `${color}18`,
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <Icon
-        name={category?.icon ?? "wallet-outline"}
-        color={category?.color ?? C.green}
-        size={size * 0.47}
-      />
+      <Icon name={icon} color={color} size={size * 0.47} />
     </View>
   );
 }
@@ -437,33 +446,41 @@ export function TransactionRow({
   tx: any;
   onPress?: () => void;
 }) {
+  // Chuẩn hóa danh mục hỗ trợ cả object lẫn các cột từ database join
+  const categoryData =
+    typeof tx?.category === "object"
+      ? tx.category
+      : {
+          name: tx?.category_name || tx?.category || "Khác",
+          icon: tx?.category_icon || tx?.icon,
+          color: tx?.category_color || tx?.color,
+        };
+
   return (
     <Tap
-      onPress={
-        onPress ||
-        (() =>
-          router.push({
-            pathname: "/transaction/[id]",
-            params: { id: tx?.id },
-          }))
-      }
+      onPress={onPress} // Chỉ kích hoạt khi có hàm onPress truyền vào, không dùng router.push
       style={s.txRow}
     >
-      <CategoryIcon category={tx?.category} />
+      <CategoryIcon category={categoryData} />
       <View style={{ flex: 1, gap: 4 }}>
         <Txt weight="bold" numberOfLines={1} style={{ fontSize: 13 }}>
           {tx?.title || tx?.name}
         </Txt>
-        <Txt style={{ color: C.muted, fontSize: 11 }}>
-          {tx?.category?.name || "Khác"}
-        </Txt>
+        <Txt style={{ color: C.muted, fontSize: 11 }}>{categoryData.name}</Txt>
       </View>
       <View style={{ alignItems: "flex-end", gap: 5 }}>
-        <Txt weight="bold" style={{ fontSize: 12, color: C.ink }}>
-          −{Number(tx?.amount || 0).toLocaleString()} ₫
+        <Txt
+          weight="bold"
+          style={{
+            fontSize: 12,
+            color: tx?.type === "income" ? "#16A34A" : C.ink,
+          }}
+        >
+          {tx?.type === "income" ? "+" : "−"}
+          {Number(tx?.amount || 0).toLocaleString()} ₫
         </Txt>
         <Txt style={{ color: C.muted, fontSize: 11 }}>
-          {tx?.date || tx?.occurredAt || ""}
+          {String(tx?.date || tx?.occurredAt || "").slice(0, 10)}
         </Txt>
       </View>
     </Tap>
@@ -473,7 +490,6 @@ export function TransactionRow({
 export const s = StyleSheet.create({
   screen: {
     paddingHorizontal: 22,
-    paddingTop: 16,
     paddingBottom: 36,
     gap: 22,
     width: "100%",

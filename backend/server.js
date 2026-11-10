@@ -283,7 +283,6 @@ app.put("/api/transactions/:id", async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    // 1. Kiểm tra giao dịch cũ (có kèm customer_id nếu có để bảo mật)
     let checkSql = "SELECT * FROM transactions WHERE id = ?";
     let checkParams = [id];
     if (customer_id) {
@@ -301,33 +300,74 @@ app.put("/api/transactions/:id", async (req, res) => {
 
     const oldTx = oldRows[0];
     const oldAmount = Number(oldTx.amount);
+    const diff = newAmount - oldAmount;
 
-    // 2. Cập nhật bảng transactions
+    // Xác định đúng wallet_id (phòng trường hợp bản ghi cũ null wallet_id)
+    let targetWalletId = oldTx.wallet_id;
+    if (!targetWalletId) {
+      const [wDefault] = await conn.query(
+        "SELECT id, balance FROM wallets WHERE customer_id = ? LIMIT 1",
+        [oldTx.customer_id],
+      );
+      targetWalletId = wDefault[0]?.id;
+    }
+
+    // Nếu chi tiêu tăng lên, kiểm tra xem ví có đủ tiền không
+    if (diff > 0 && targetWalletId && oldTx.type !== "income") {
+      const [wCheck] = await conn.query(
+        "SELECT balance FROM wallets WHERE id = ?",
+        [targetWalletId],
+      );
+      if (wCheck.length === 0 || Number(wCheck[0].balance) < diff) {
+        await conn.rollback();
+        return res.status(400).json({
+          error: "Số dư trong ví không đủ để cập nhật khoản chi tiêu này!",
+        });
+      }
+    }
+
+    const formattedDate = date
+      ? String(date).slice(0, 19).replace("T", " ")
+      : oldTx.date;
+
+    // Cập nhật transactions
     await conn.query(
       `UPDATE transactions 
        SET title = ?, amount = ?, category_id = ?, date = ?, note = ?
        WHERE id = ?`,
       [
-        title,
+        title || oldTx.title,
         newAmount,
-        category_id || oldTx.category_id,
-        date || oldTx.date,
+        category_id !== undefined ? category_id : oldTx.category_id,
+        formattedDate,
         note !== undefined ? note : oldTx.note,
         id,
       ],
     );
 
-    // 3. Cập nhật chênh lệch số dư ví
-    const diff = newAmount - oldAmount;
-    if (diff !== 0) {
+    // Cập nhật ví nếu có chênh lệch và có ví
+    if (diff !== 0 && targetWalletId) {
+      const walletDiff = oldTx.type === "income" ? -diff : diff;
       await conn.query(
         "UPDATE wallets SET balance = balance - ? WHERE id = ?",
-        [diff, oldTx.wallet_id],
+        [walletDiff, targetWalletId],
       );
     }
 
+    let currentBalance = 0;
+    if (targetWalletId) {
+      const [wRows] = await conn.query(
+        "SELECT balance FROM wallets WHERE id = ?",
+        [targetWalletId],
+      );
+      currentBalance = Number(wRows[0]?.balance || 0);
+    }
+
     await conn.commit();
-    res.json({ message: "Cập nhật giao dịch thành công" });
+    res.json({
+      message: "Cập nhật giao dịch thành công",
+      newBalance: currentBalance,
+    });
   } catch (err) {
     await conn.rollback();
     console.error("Lỗi cập nhật transaction:", err);
@@ -340,7 +380,7 @@ app.put("/api/transactions/:id", async (req, res) => {
 // 4. Xóa giao dịch chi tiêu & Hoàn trả tiền vào ví (Dùng Transaction)
 app.delete("/api/transactions/:id", async (req, res) => {
   const { id } = req.params;
-  const { customer_id } = req.query; // Nhận thêm customer_id từ query param
+  const { customer_id } = req.query;
 
   const conn = await db.getConnection();
   try {
@@ -362,18 +402,43 @@ app.delete("/api/transactions/:id", async (req, res) => {
     }
 
     const tx = txs[0];
+    let targetWalletId = tx.wallet_id;
+    if (!targetWalletId) {
+      const [wDefault] = await conn.query(
+        "SELECT id FROM wallets WHERE customer_id = ? LIMIT 1",
+        [tx.customer_id],
+      );
+      targetWalletId = wDefault[0]?.id;
+    }
 
-    // 1. Hoàn lại tiền vào ví
-    await conn.query("UPDATE wallets SET balance = balance + ? WHERE id = ?", [
-      Number(tx.amount),
-      tx.wallet_id,
-    ]);
+    // Hoàn tiền vào ví: nếu là chi tiêu thì +amount, nếu là thu nhập thì -amount
+    if (targetWalletId) {
+      const amountToRevert =
+        tx.type === "income" ? -Number(tx.amount) : Number(tx.amount);
 
-    // 2. Xóa giao dịch
+      await conn.query(
+        "UPDATE wallets SET balance = balance + ? WHERE id = ?",
+        [amountToRevert, targetWalletId],
+      );
+    }
+
+    // Xóa giao dịch
     await conn.query("DELETE FROM transactions WHERE id = ?", [id]);
 
+    let currentBalance = 0;
+    if (targetWalletId) {
+      const [wRows] = await conn.query(
+        "SELECT balance FROM wallets WHERE id = ?",
+        [targetWalletId],
+      );
+      currentBalance = Number(wRows[0]?.balance || 0);
+    }
+
     await conn.commit();
-    res.json({ message: "Xóa giao dịch thành công" });
+    res.json({
+      message: "Xóa giao dịch thành công",
+      newBalance: currentBalance,
+    });
   } catch (err) {
     await conn.rollback();
     console.error("Lỗi xóa transaction:", err);
@@ -386,66 +451,128 @@ app.delete("/api/transactions/:id", async (req, res) => {
 /* ===================================================
    3. CÁC API DÀNH CHO DANH MỤC (CATEGORIES - ĐÃ BỎ CỘT TYPE)
 =================================================== */
-
-// Lấy danh mục chi tiêu (Mặc định hệ thống + Danh mục riêng của customer)
+// 1. LẤY DANH SÁCH DANH MỤC (Mặc định hệ thống + Danh mục riêng của User)
 app.get("/api/categories", async (req, res) => {
   const { customer_id } = req.query;
   try {
-    const [rows] = await db.query(
-      "SELECT id, customer_id, name, icon, color FROM categories WHERE customer_id IS NULL OR customer_id = ? ORDER BY id ASC",
-      [customer_id || 0],
-    );
+    let sql = "SELECT * FROM categories";
+    const params = [];
+
+    if (customer_id) {
+      // Lấy danh mục hệ thống (NULL) HOẶC danh mục của chính user đó
+      sql += " WHERE customer_id IS NULL OR customer_id = ?";
+      params.push(customer_id);
+    } else {
+      sql += " WHERE customer_id IS NULL";
+    }
+
+    sql += " ORDER BY id ASC";
+    const [rows] = await db.query(sql, params);
     res.json(rows);
   } catch (err) {
+    console.error("Lỗi lấy danh mục:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Thêm danh mục chi tiêu mới
+// 2. TẠO MỚI DANH MỤC
 app.post("/api/categories", async (req, res) => {
-  const { customer_id, name, icon, color } = req.body;
+  const { name, icon, color, customer_id } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: "Tên danh mục không được để trống!" });
+  }
+
   try {
     const [result] = await db.query(
-      "INSERT INTO categories (customer_id, name, icon, color) VALUES (?, ?, ?, ?)",
-      [
-        customer_id || null,
-        name,
-        icon || "pricetag-outline",
-        color || "#EF4444",
-      ],
+      "INSERT INTO categories (name, icon, color, customer_id) VALUES (?, ?, ?, ?)",
+      [name.trim(), icon || "📦", color || "#6B7280", customer_id || null],
     );
-    res.json({
-      message: "Thêm danh mục thành công",
-      insertId: result.insertId,
+
+    res.status(201).json({
+      message: "Tạo danh mục thành công!",
+      category: {
+        id: result.insertId,
+        name: name.trim(),
+        icon: icon || "📦",
+        color: color || "#6B7280",
+        customer_id: customer_id || null,
+      },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Lỗi tạo danh mục:", err);
+    res.status(500).json({ error: err.message || "Không thể tạo danh mục!" });
   }
 });
 
-// Sửa danh mục chi tiêu
+// CẬP NHẬT DANH MỤC
 app.put("/api/categories/:id", async (req, res) => {
   const { id } = req.params;
   const { name, icon, color } = req.body;
+
+  console.log(`[UPDATE] Yêu cầu sửa ID: ${id}, Name: ${name}`);
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: "Tên danh mục không được để trống!" });
+  }
+
   try {
-    await db.query(
+    const [result] = await db.query(
       "UPDATE categories SET name = ?, icon = ?, color = ? WHERE id = ?",
-      [name, icon || "pricetag-outline", color || "#EF4444", id],
+      [name.trim(), icon || "pricetag-outline", color || "#174B39", id],
     );
-    res.json({ message: "Cập nhật danh mục thành công" });
+
+    console.log(`[UPDATE RESULT] Affected rows: ${result.affectedRows}`);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        error: `Không tìm thấy danh mục có ID = ${id} trong database!`,
+      });
+    }
+
+    res.json({ success: true, message: "Cập nhật danh mục thành công!" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[UPDATE ERROR]:", err);
+    res.status(500).json({ error: err.message || "Lỗi server khi sửa!" });
   }
 });
 
-// Xóa danh mục chi tiêu
+// XÓA DANH MỤC
 app.delete("/api/categories/:id", async (req, res) => {
   const { id } = req.params;
+  console.log(`[DELETE] Yêu cầu xóa ID: ${id}`);
+
+  const conn = await db.getConnection();
   try {
-    await db.query("DELETE FROM categories WHERE id = ?", [id]);
-    res.json({ message: "Xóa danh mục thành công" });
+    await conn.beginTransaction();
+
+    // 1. Tạm gỡ khóa ngoại ở các giao dịch (set về NULL hoặc ID 1) để không bị lỗi Foreign key constraint
+    await conn.query(
+      "UPDATE transactions SET category_id = NULL WHERE category_id = ?",
+      [id],
+    );
+
+    // 2. Thực hiện xóa danh mục
+    const [result] = await conn.query("DELETE FROM categories WHERE id = ?", [
+      id,
+    ]);
+    console.log(`[DELETE RESULT] Affected rows: ${result.affectedRows}`);
+
+    if (result.affectedRows === 0) {
+      await conn.rollback();
+      return res
+        .status(404)
+        .json({ error: `Không tìm thấy danh mục ID = ${id} để xóa!` });
+    }
+
+    await conn.commit();
+    res.json({ success: true, message: "Đã xóa danh mục thành công!" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    await conn.rollback();
+    console.error("[DELETE ERROR]:", err);
+    res.status(500).json({ error: err.message || "Lỗi server khi xóa!" });
+  } finally {
+    conn.release();
   }
 });
 

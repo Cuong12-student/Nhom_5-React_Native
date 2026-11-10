@@ -22,8 +22,18 @@ import {
   getLast6MonthsExpense,
   getRemainingBudget,
   getTransactions,
+  getCategories,
 } from "../utils/storage";
-
+const FALLBACK_COLORS = [
+  "#10B981", // Xanh lá
+  "#F59E0B", // Cam
+  "#8B5CF6", // Tím
+  "#EF4444", // Đỏ
+  "#3B82F6", // Xanh dương
+  "#EC4899", // Hồng
+  "#14B8A6", // Xanh ngọc
+  "#F97316", // Cam đậm
+];
 export default function AnalyticsScreen({
   userId = 0,
   refreshKey = 0,
@@ -45,8 +55,13 @@ export default function AnalyticsScreen({
 
   const loadData = useCallback(async () => {
     // 1. Tải và đồng bộ danh sách giao dịch của riêng user này
+    let dbCategories: any[] = [];
     if (userId) {
-      await getTransactions(userId);
+      const [, fetchedCats] = await Promise.all([
+        getTransactions(userId),
+        getCategories(userId),
+      ]);
+      dbCategories = fetchedCats || [];
     }
 
     const year = viewDate.getFullYear();
@@ -67,13 +82,17 @@ export default function AnalyticsScreen({
     }
 
     // Map category info
-    const mappedBreakdown = breakdown.map((item) => {
-      const cat = CATEGORIES.find((c) => c.id === item.category);
+    const mappedBreakdown = breakdown.map((item, index) => {
+      const cat = dbCategories.find(
+        (c) =>
+          String(c.id) === String(item.category) ||
+          c.name?.toLowerCase() === String(item.category).toLowerCase(),
+      );
       return {
         id: item.category,
-        name: cat?.name || "Khác",
-        icon: cat?.icon || "ellipse-outline",
-        color: cat?.color || "#8F9C92",
+        name: cat?.name || item.category || "Khác",
+        icon: cat?.icon || "pricetag-outline",
+        color: cat?.color || FALLBACK_COLORS[index % FALLBACK_COLORS.length],
         amount: item.amount,
         fraction: item.fraction,
       };
@@ -135,52 +154,6 @@ export default function AnalyticsScreen({
           {monthLabel}
         </Txt>
         <IconButton icon="chevron-forward" label="Sau" onPress={goNextMonth} />
-      </View>
-
-      {/* ─── Tổng quan Thu Chi ─── */}
-      <View
-        style={{
-          flexDirection: "row",
-          gap: 10,
-          marginTop: 4,
-        }}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "#ECFDF5",
-            borderRadius: 16,
-            padding: 14,
-          }}
-        >
-          <Txt style={{ fontSize: 11, color: "#6B7280" }}>
-            {t("analytics.total_income")}
-          </Txt>
-          <Txt
-            weight="extra"
-            style={{ fontSize: 16, color: "#16A34A", marginTop: 4 }}
-          >
-            +{totalIncome.toLocaleString()} ₫
-          </Txt>
-        </View>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "#FEF2F2",
-            borderRadius: 16,
-            padding: 14,
-          }}
-        >
-          <Txt style={{ fontSize: 11, color: "#6B7280" }}>
-            {t("analytics.total_spent")}
-          </Txt>
-          <Txt
-            weight="extra"
-            style={{ fontSize: 16, color: "#DC2626", marginTop: 4 }}
-          >
-            -{totalExpense.toLocaleString()} ₫
-          </Txt>
-        </View>
       </View>
 
       {/* ─── Giới hạn chi tiêu tháng ─── */}
