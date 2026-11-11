@@ -220,18 +220,82 @@ export async function depositToWallet(
    4. QUẢN LÝ GIỚI HẠN CHI TIÊU (SPEND LIMIT)
 =================================================== */
 
+// Bộ nhớ đệm tạm trong RAM để các màn hình đọc đồng bộ tức thì không bị giật lag
+const limitCache: Record<number, number> = {};
+
+/**
+ * Lấy hạn mức chi tiêu của người dùng
+ */
 export async function getSpendLimit(userId: number): Promise<number> {
-  const saved = await AsyncStorage.getItem(`@limit_${userId}`);
-  return saved ? Number(saved) : 5_000_000;
+  if (limitCache[userId] !== undefined) {
+    return limitCache[userId];
+  }
+  try {
+    const saved = await AsyncStorage.getItem(`@limit_${userId}`);
+    const limit = saved ? Number(saved) : 5_000_000; // Mặc định 5 triệu
+    limitCache[userId] = limit;
+    return limit;
+  } catch {
+    return 5_000_000;
+  }
 }
 
+/**
+ * Cập nhật hạn mức chi tiêu mới (Hỗ trợ cả mốc có sẵn và số tiền tự nhập ở mục "Khác")
+ */
 export async function setSpendLimit(
   userId: number,
   limit: number,
 ): Promise<number> {
-  const safeLimit = Number(limit);
-  await AsyncStorage.setItem(`@limit_${userId}`, String(safeLimit));
+  const safeLimit = Math.max(0, Math.floor(Number(limit) || 0));
+  limitCache[userId] = safeLimit;
+  try {
+    await AsyncStorage.setItem(`@limit_${userId}`, String(safeLimit));
+  } catch (e) {
+    console.warn("Lỗi lưu hạn mức:", e);
+  }
   return safeLimit;
+}
+
+/**
+ * Tính toán hạn mức còn lại:
+ * 1. Tự động reset khi bước sang tháng mới (chỉ lọc chi tiêu đúng tháng/năm truyền vào).
+ * 2. Khi chi tiêu vượt mức (spent > limit), remaining sẽ ra số ÂM (ví dụ: -430.000 đ).
+ */
+export async function getRemainingBudget(
+  userId: number,
+  year: number,
+  month: number, // 0 - 11 (theo getMonth() của JS)
+) {
+  // 1. Lấy hạn mức
+  const limit = await getSpendLimit(userId);
+
+  // 2. Lấy danh sách giao dịch
+  const transactions: Transaction[] = await getTransactions(userId);
+
+  // 3. Lọc chi tiêu chỉ trong đúng tháng và năm yêu cầu (Tự động reset khi sang tháng khác)
+  const monthlyExpense = transactions.reduce((total, tx: any) => {
+    // Chỉ tính giao dịch chi tiêu (expense)
+    if (tx.type !== "expense") return total;
+
+    const txDate = new Date(tx.date);
+    const txYear = txDate.getFullYear();
+    const txMonth = txDate.getMonth();
+
+    if (txYear === year && txMonth === month) {
+      return total + Number(tx.amount || 0);
+    }
+    return total;
+  }, 0);
+
+  // 4. Tính số tiền còn lại (cho phép ra số âm khi vượt mức)
+  const remaining = limit - monthlyExpense;
+
+  return {
+    limit,
+    spent: monthlyExpense,
+    remaining, // Số âm nếu vượt mức
+  };
 }
 
 /* ===================================================
@@ -684,15 +748,4 @@ export function getLast6MonthsExpense(
     });
   }
   return result;
-}
-
-export function getRemainingBudget(
-  userId: number,
-  year: number,
-  month: number,
-): { limit: number; spent: number; remaining: number } {
-  // ĐÃ SỬA: Truyền userId vào getMonthlyExpense để tính đúng chi tiêu của người dùng hiện tại
-  const spent = getMonthlyExpense(year, month, userId);
-  const limit = 5_000_000;
-  return { limit, spent, remaining: limit - spent };
 }

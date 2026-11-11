@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, TextInput, Alert } from "react-native";
 import {
   Button,
   Field,
@@ -12,7 +12,7 @@ import {
 } from "../components/ui";
 import { C } from "../constants/colors";
 import { useLanguage } from "../contexts/languageContext";
-import { getSpendLimit } from "../utils/storage";
+import { getSpendLimit, setSpendLimit } from "../utils/storage";
 
 const languages = [
   { id: "vi", name: "Tiếng Việt" },
@@ -48,17 +48,63 @@ export default function SettingsScreen({
 }) {
   const { language, setLanguage, t } = useLanguage();
   const [selectedLimit, setSelectedLimit] = useState(5_000_000);
+  const [isCustom, setIsCustom] = useState(false);
+  const [customInput, setCustomInput] = useState("");
 
-  // Load current limit
-  React.useEffect(() => {
+  // Load current limit từ storage
+  useEffect(() => {
     if (userId) {
-      getSpendLimit(userId).then((limit) => setSelectedLimit(limit));
+      getSpendLimit(userId).then((limit) => {
+        setSelectedLimit(limit);
+        const isPreset = spendLimitOptions.some((opt) => opt.value === limit);
+        if (!isPreset) {
+          setIsCustom(true);
+          setCustomInput(limit.toLocaleString("vi-VN"));
+        } else {
+          setIsCustom(false);
+        }
+      });
     }
   }, [userId]);
 
-  function handleLimitChange(value: number) {
+  // Chọn các mốc có sẵn
+  async function handleLimitChange(value: number) {
+    setIsCustom(false);
     setSelectedLimit(value);
+    if (userId) {
+      await setSpendLimit(userId, value);
+    }
     if (onSetSpendLimit) onSetSpendLimit(value);
+  }
+
+  // Chọn mục "Khác"
+  function handleSelectCustom() {
+    setIsCustom(true);
+    const isPreset = spendLimitOptions.some(
+      (opt) => opt.value === selectedLimit,
+    );
+    if (!isPreset && selectedLimit > 0) {
+      setCustomInput(selectedLimit.toLocaleString("vi-VN"));
+    }
+  }
+
+  // Lưu số tiền tự nhập
+  async function handleSaveCustom() {
+    const rawNum = Number(customInput.replace(/[^0-9]/g, ""));
+    if (!rawNum || rawNum <= 0) {
+      Alert.alert("Thông báo", "Vui lòng nhập số tiền hợp lệ");
+      return;
+    }
+
+    setSelectedLimit(rawNum);
+    if (userId) {
+      await setSpendLimit(userId, rawNum);
+    }
+    if (onSetSpendLimit) onSetSpendLimit(rawNum);
+    Alert.alert(
+      "Thành công",
+      `Đã lưu hạn mức: ${rawNum.toLocaleString("vi-VN")} ₫`,
+    );
   }
 
   return (
@@ -119,37 +165,85 @@ export default function SettingsScreen({
               />
             </Tap>
           ))}
-        </View>
-      </View>
-
-      {/* ─── Ngôn ngữ ─── */}
-      <Txt weight="bold">{t("settings.language")}</Txt>
-      <View style={{ gap: 9 }}>
-        {languages.map((lang) => (
+          {/* Mục Khác */}
           <Tap
-            key={lang.id}
-            onPress={() => setLanguage(lang.id as any)}
+            onPress={handleSelectCustom}
             style={[
               s.card,
               s.row,
               {
                 justifyContent: "space-between",
-                minHeight: 58,
-                paddingVertical: 12,
+                minHeight: 52,
+                paddingVertical: 10,
+                borderWidth: 2,
+                borderColor: isCustom ? C.green : "transparent",
               },
             ]}
           >
-            <Txt weight={language === lang.id ? "bold" : "regular"}>
-              {lang.name}
+            <Txt
+              weight={isCustom ? "bold" : "regular"}
+              style={{ fontSize: 14 }}
+            >
+              {isCustom &&
+              !spendLimitOptions.some((o) => o.value === selectedLimit)
+                ? `Khác (${selectedLimit.toLocaleString("vi-VN")} ₫)`
+                : "Khác (Tự nhập)"}
             </Txt>
             <Icon
-              name={
-                language === lang.id ? "checkmark-circle" : "ellipse-outline"
-              }
-              color={language === lang.id ? C.green : C.line}
+              name={isCustom ? "checkmark-circle" : "ellipse-outline"}
+              color={isCustom ? C.green : C.line}
             />
           </Tap>
-        ))}
+          {/* Ô nhập số tiền khi chọn Khác */}
+          {isCustom && (
+            <View
+              style={[
+                s.card,
+                s.row,
+                {
+                  gap: 10,
+                  marginTop: 2,
+                  borderColor: C.green,
+                  borderWidth: 1,
+                  backgroundColor: "#fff",
+                },
+              ]}
+            >
+              <TextInput
+                value={customInput}
+                onChangeText={(text) => {
+                  const raw = text.replace(/[^0-9]/g, "");
+                  setCustomInput(
+                    raw ? Number(raw).toLocaleString("vi-VN") : "",
+                  );
+                }}
+                keyboardType="numeric"
+                placeholder="Nhập số tiền (VD: 4.500.000)..."
+                placeholderTextColor={C.muted}
+                style={{
+                  flex: 1,
+                  fontSize: 15,
+                  fontWeight: "600",
+                  color: "#1E293B",
+                  paddingVertical: 4,
+                }}
+              />
+              <Tap
+                onPress={handleSaveCustom}
+                style={{
+                  backgroundColor: C.green,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                }}
+              >
+                <Txt weight="bold" style={{ color: "#fff", fontSize: 13 }}>
+                  Lưu
+                </Txt>
+              </Tap>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* ─── Về màn hình chào ─── */}

@@ -89,7 +89,7 @@ export default function HomeScreen({
 
       // 2. Tính toán hạn mức chi tiêu tháng
       const now = new Date();
-      const budget = getRemainingBudget(
+      const budget = await getRemainingBudget(
         userId,
         now.getFullYear(),
         now.getMonth(),
@@ -216,6 +216,7 @@ export default function HomeScreen({
 
         {/* Giới hạn chi tiêu */}
         <View style={styles.budgetCard}>
+          {/* Header: Tiêu đề & Badge trạng thái */}
           <View style={styles.budgetHeader}>
             <Text style={styles.budgetTitle}>🎯 {t("home.spend_limit")}</Text>
             <Text
@@ -230,6 +231,7 @@ export default function HomeScreen({
             </Text>
           </View>
 
+          {/* Thanh tiến trình chi tiêu (đổi đỏ khi vượt mức) */}
           <View style={styles.progressBg}>
             <View
               style={[
@@ -242,6 +244,7 @@ export default function HomeScreen({
             />
           </View>
 
+          {/* Chi tiết: Đã chi / Hạn mức */}
           <View style={styles.budgetDetails}>
             <View>
               <Text style={styles.budgetLabel}>{t("home.budget_spent")}</Text>
@@ -262,6 +265,7 @@ export default function HomeScreen({
             </View>
           </View>
 
+          {/* Khối Còn lại: Tự động đổi nền đỏ + chữ đỏ + số âm khi vượt mức */}
           <View
             style={[
               styles.remainingBox,
@@ -270,7 +274,12 @@ export default function HomeScreen({
                 : { backgroundColor: "#ECFDF5" },
             ]}
           >
-            <Text style={styles.remainingLabel}>
+            <Text
+              style={[
+                styles.remainingLabel,
+                isOverBudget && { color: "#991B1B" },
+              ]}
+            >
               {t("home.budget_remaining")}
             </Text>
             <Text
@@ -283,7 +292,6 @@ export default function HomeScreen({
             </Text>
           </View>
         </View>
-
         {/* 3 nút thao tác nhanh */}
         <View style={styles.quickActions}>
           <TouchableOpacity style={styles.actionBtn} onPress={onAdd}>

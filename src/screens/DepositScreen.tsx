@@ -118,65 +118,6 @@ export default function DepositScreen({
         </View>
       </View>
 
-      {/* Phương thức nạp */}
-      <View style={{ gap: 10 }}>
-        <Txt weight="semibold" style={{ fontSize: 12 }}>
-          {t("deposit.method")}
-        </Txt>
-        {[
-          {
-            icon: "🏦",
-            name: t("deposit.bank_transfer"),
-            desc: "Chuyển khoản ngân hàng",
-          },
-          { icon: "💳", name: t("deposit.card"), desc: "Visa / Mastercard" },
-          {
-            icon: "📱",
-            name: t("deposit.e_wallet"),
-            desc: "MoMo, ZaloPay, VNPay",
-          },
-        ].map((method, idx) => (
-          <View
-            key={idx}
-            style={[
-              s.card,
-              s.row,
-              {
-                paddingVertical: 14,
-                paddingHorizontal: 16,
-                gap: 12,
-                borderWidth: idx === 0 ? 2 : 1,
-                borderColor: idx === 0 ? C.green : C.line,
-              },
-            ]}
-          >
-            <Txt style={{ fontSize: 24 }}>{method.icon}</Txt>
-            <View style={{ flex: 1 }}>
-              <Txt weight="bold" style={{ fontSize: 13 }}>
-                {method.name}
-              </Txt>
-              <Txt style={{ fontSize: 11, color: C.muted }}>{method.desc}</Txt>
-            </View>
-            {idx === 0 && (
-              <View
-                style={{
-                  backgroundColor: "#ECFDF5",
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 6,
-                }}
-              >
-                <Txt
-                  style={{ fontSize: 10, color: "#16A34A", fontWeight: "700" }}
-                >
-                  Mặc định
-                </Txt>
-              </View>
-            )}
-          </View>
-        ))}
-      </View>
-
       <Button
         title={loading ? "Đang xử lý..." : t("deposit.confirm")}
         icon={loading ? undefined : "checkmark"}

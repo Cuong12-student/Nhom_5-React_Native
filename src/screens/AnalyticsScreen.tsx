@@ -78,7 +78,8 @@ export default function AnalyticsScreen({
     setLast6Months(trend);
 
     if (userId) {
-      setBudgetInfo(getRemainingBudget(userId, year, month));
+      const budget = await getRemainingBudget(userId, year, month);
+      setBudgetInfo(budget);
     }
 
     // Map category info
@@ -164,6 +165,7 @@ export default function AnalyticsScreen({
           padding: 16,
           borderWidth: 1,
           borderColor: isOverBudget ? "#FECACA" : "#BBF7D0",
+          marginBottom: 16,
         }}
       >
         <View
@@ -185,7 +187,7 @@ export default function AnalyticsScreen({
           </Txt>
         </View>
 
-        {/* Progress bar */}
+        {/* Progress bar - Có phòng ngừa budgetInfo.limit = 0 */}
         <View
           style={{
             height: 10,
@@ -199,7 +201,10 @@ export default function AnalyticsScreen({
             style={{
               height: 10,
               borderRadius: 5,
-              width: `${Math.min((budgetInfo.spent / budgetInfo.limit) * 100, 100)}%`,
+              width: `${Math.min(
+                ((budgetInfo.spent || 0) / (budgetInfo.limit || 1)) * 100,
+                100,
+              )}%`,
               backgroundColor: isOverBudget ? "#DC2626" : "#16A34A",
             }}
           />
@@ -207,13 +212,16 @@ export default function AnalyticsScreen({
 
         <View style={[s.row, { justifyContent: "space-between" }]}>
           <Txt style={{ fontSize: 12, color: "#6B7280" }}>
-            {t("analytics.spent")}: {budgetInfo.spent.toLocaleString()} ₫
+            {t("analytics.spent")}:{" "}
+            {Number(budgetInfo.spent || 0).toLocaleString("vi-VN")} ₫
           </Txt>
           <Txt style={{ fontSize: 12, color: "#6B7280" }}>
-            {t("analytics.limit")}: {budgetInfo.limit.toLocaleString()} ₫
+            {t("analytics.limit")}:{" "}
+            {Number(budgetInfo.limit || 0).toLocaleString("vi-VN")} ₫
           </Txt>
         </View>
 
+        {/* Khối hiển thị số tiền còn lại (Hiện dấu âm và màu đỏ đậm khi vượt mức) */}
         <View
           style={{
             marginTop: 10,
@@ -223,7 +231,12 @@ export default function AnalyticsScreen({
             alignItems: "center",
           }}
         >
-          <Txt style={{ fontSize: 11, color: "#6B7280" }}>
+          <Txt
+            style={{
+              fontSize: 11,
+              color: isOverBudget ? "#991B1B" : "#6B7280",
+            }}
+          >
             {t("analytics.remaining")}
           </Txt>
           <Txt
@@ -234,7 +247,7 @@ export default function AnalyticsScreen({
               marginTop: 2,
             }}
           >
-            {budgetInfo.remaining.toLocaleString()} ₫
+            {Number(budgetInfo.remaining || 0).toLocaleString("vi-VN")} ₫
           </Txt>
         </View>
       </View>
@@ -345,61 +358,6 @@ export default function AnalyticsScreen({
           />
         )}
       </Enter>
-
-      {/* ─── Tổng chi tiêu tháng này ─── */}
-      <View
-        style={{
-          backgroundColor: "#fff",
-          borderRadius: 16,
-          padding: 18,
-          marginTop: 8,
-          borderWidth: 1,
-          borderColor: C.line,
-        }}
-      >
-        <Txt weight="bold" style={{ fontSize: 15, marginBottom: 12 }}>
-          📊 {t("analytics.monthly_summary")}
-        </Txt>
-        <View style={{ gap: 8 }}>
-          <View style={[s.row, { justifyContent: "space-between" }]}>
-            <Txt style={{ fontSize: 13, color: "#6B7280" }}>
-              {t("analytics.total_income")}
-            </Txt>
-            <Txt weight="bold" style={{ fontSize: 14, color: "#16A34A" }}>
-              +{totalIncome.toLocaleString()} ₫
-            </Txt>
-          </View>
-          <View style={[s.row, { justifyContent: "space-between" }]}>
-            <Txt style={{ fontSize: 13, color: "#6B7280" }}>
-              {t("analytics.total_spent")}
-            </Txt>
-            <Txt weight="bold" style={{ fontSize: 14, color: "#DC2626" }}>
-              -{totalExpense.toLocaleString()} ₫
-            </Txt>
-          </View>
-          <View
-            style={{
-              height: 1,
-              backgroundColor: C.line,
-              marginVertical: 4,
-            }}
-          />
-          <View style={[s.row, { justifyContent: "space-between" }]}>
-            <Txt weight="bold" style={{ fontSize: 14 }}>
-              {t("analytics.net_balance")}
-            </Txt>
-            <Txt
-              weight="extra"
-              style={{
-                fontSize: 16,
-                color: totalIncome - totalExpense >= 0 ? "#16A34A" : "#DC2626",
-              }}
-            >
-              {(totalIncome - totalExpense).toLocaleString()} ₫
-            </Txt>
-          </View>
-        </View>
-      </View>
 
       {/* ─── Xu hướng 6 tháng ─── */}
       <View>
